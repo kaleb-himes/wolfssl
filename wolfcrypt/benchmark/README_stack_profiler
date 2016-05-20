@@ -1,0 +1,5 @@
+To use this feature configure with C_EXTRA_FLAGS="-DWOLFCRYPT_PROFILE_STACK"
+or copy/paste the command below:
+
+./configure C_EXTRA_FLAGS="-DWOLFCRYPT_PROFILE_STACK" && make \
+                              && make check && ./wolfcrypt/benchmark/benchmark
