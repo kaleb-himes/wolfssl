@@ -57,6 +57,10 @@
     static int devId = INVALID_DEVID;
 #endif
 
+#ifdef HAVE_STACK_SIZE
+    #include "wolfssl/wolfcrypt/wc_stack_profiler.h"
+#endif
+
 /* Note on using port 0: the client standalone example doesn't utilize the
  * port 0 port sharing; that is used by (1) the server in external control
  * test mode and (2) the testsuite which uses this code and sets up the correct
@@ -527,6 +531,9 @@ static void Usage(void)
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end, usage;
+    #endif
     SOCKET_T sockfd = WOLFSSL_SOCKET_INVALID;
 
     WOLFSSL_METHOD*  method  = 0;
@@ -1783,6 +1790,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void) ourCert;
     (void) ourKey;
     (void) trackMemory;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    usage = wc_CalcStackUsage(wolfStackPointer, end);
+    printf("client_test used %lu bytes of stack\n", usage);
+#endif
 
 #if !defined(WOLFSSL_TIRTOS)
     return 0;
@@ -1795,6 +1807,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     int main(int argc, char** argv)
     {
+#ifdef HAVE_STACK_SIZE
+        wolfStackPointer = wc_GetStackPosition();
+        wc_CalcFuncOverhead();
+#endif
         func_args args;
 
 
@@ -1809,11 +1825,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_Init();
         ChangeToWolfRoot();
 
-#ifdef HAVE_STACK_SIZE
-        StackSizeCheck(&args, client_test);
-#else
+//#ifdef HAVE_STACK_SIZE
+//        StackSizeCheck(&args, client_test);
+//#else
         client_test(&args);
-#endif
+//#endif
         wolfSSL_Cleanup();
 
 #ifdef HAVE_WNR

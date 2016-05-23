@@ -239,6 +239,29 @@ double current_time(int);
 extern int stack_profile_test(void *args);
 #endif
 
+#ifdef HAVE_CAVIUM
+
+static int OpenNitroxDevice(int dma_mode,int dev_id)
+{
+   Csp1CoreAssignment core_assign;
+   Uint32             device;
+
+   if (CspInitialize(CAVIUM_DIRECT,CAVIUM_DEV_ID))
+      return -1;
+   if (Csp1GetDevType(&device))
+      return -1;
+   if (device != NPX_DEVICE) {
+      if (ioctl(gpkpdev_hdlr[CAVIUM_DEV_ID], IOCTL_CSP1_GET_CORE_ASSIGNMENT,
+                (Uint32 *)&core_assign)!= 0)
+         return -1;
+   }
+   CspShutdown(CAVIUM_DEV_ID);
+
+   return CspInitialize(dma_mode, dev_id);
+}
+
+#endif
+
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
     WOLFSSL_API int wolfSSL_Debugging_ON();
 #endif

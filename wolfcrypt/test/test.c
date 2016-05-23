@@ -158,6 +158,10 @@
 /* for async devices */
 static int devId = INVALID_DEVID;
 
+#ifdef HAVE_STACK_SIZE
+    #include "wolfssl/wolfcrypt/wc_stack_profiler.h"
+#endif
+
 #ifdef HAVE_WNR
     const char* wnrConfigFile = "wnr-example.conf";
 #endif
@@ -306,6 +310,11 @@ int wolfcrypt_test(void* args)
     #endif
 #endif
 
+#if defined(HAVE_STACK_SIZE) && defined(NO_MAIN_DRIVER)
+    wolfStackPointer = wc_GetStackPosition();
+    wc_CalcFuncOverhead();
+#endif
+
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef WOLFSSL_STATIC_MEMORY
@@ -354,29 +363,53 @@ int wolfcrypt_test(void* args)
 #ifndef NO_MD5
     if ( (ret = md5_test()) != 0)
         return err_sys("MD5      test failed!\n", ret);
-    else
-        printf( "MD5      test passed!\n");
+    else {
+    #ifdef HAVE_STACK_SIZE
+        printf("MD5      test passed!     stack usage: ");
+        wc_PrintStackStats(); wc_ResetStackStats();
+    #else
+        printf("MD5      test passed!\n");
+    #endif
+    }
 #endif
 
 #ifdef WOLFSSL_MD2
     if ( (ret = md2_test()) != 0)
         return err_sys("MD2      test failed!\n", ret);
-    else
+    else {
+    #ifdef HAVE_STACK_SIZE
+        printf( "MD2      test passed!     stack usage: ");
+        wc_PrintStackStats(); wc_ResetStackStats();
+    #else
         printf( "MD2      test passed!\n");
+    #endif
+    }
 #endif
 
 #ifndef NO_MD4
     if ( (ret = md4_test()) != 0)
         return err_sys("MD4      test failed!\n", ret);
-    else
+    else {
+    #ifdef HAVE_STACK_SIZE
+        printf( "MD4      test passed!     stack usage: ");
+        wc_PrintStackStats(); wc_ResetStackStats();
+    #else
         printf( "MD4      test passed!\n");
+    #endif
+    }
 #endif
 
 #ifndef NO_SHA
     if ( (ret = sha_test()) != 0)
         return err_sys("SHA      test failed!\n", ret);
-    else
+    else {
+    #ifdef HAVE_STACK_SIZE
+        printf( "SHA      test passed!     stack usage: ");
+        wc_PrintStackStats(); wc_ResetStackStats();
+    #else
         printf( "SHA      test passed!\n");
+    #endif
+    }
 #endif
 
 #ifdef WOLFSSL_SHA224
@@ -389,22 +422,40 @@ int wolfcrypt_test(void* args)
 #ifndef NO_SHA256
     if ( (ret = sha256_test()) != 0)
         return err_sys("SHA-256  test failed!\n", ret);
-    else
+    else {
+    #ifdef HAVE_STACK_SIZE
+        printf( "SHA-256  test passed!     stack usage: ");
+        wc_PrintStackStats(); wc_ResetStackStats();
+    #else
         printf( "SHA-256  test passed!\n");
+    #endif
+    }
 #endif
 
 #ifdef WOLFSSL_SHA384
     if ( (ret = sha384_test()) != 0)
         return err_sys("SHA-384  test failed!\n", ret);
-    else
+    else {
+    #ifdef HAVE_STACK_SIZE
+        printf( "SHA-384  test passed!     stack usage: ");
+        wc_PrintStackStats(); wc_ResetStackStats();
+    #else
         printf( "SHA-384  test passed!\n");
+    #endif
+    }
 #endif
 
 #ifdef WOLFSSL_SHA512
     if ( (ret = sha512_test()) != 0)
         return err_sys("SHA-512  test failed!\n", ret);
-    else
+    else {
+    #ifdef HAVE_STACK_SIZE
+        printf( "SHA-512  test passed!     stack usage: ");
+        wc_PrintStackStats(); wc_ResetStackStats();
+    #else
         printf( "SHA-512  test passed!\n");
+    #endif
+    }
 #endif
 
 #ifdef WOLFSSL_RIPEMD
@@ -733,6 +784,12 @@ int wolfcrypt_test(void* args)
 
     int main(int argc, char** argv)
     {
+
+#ifdef HAVE_STACK_SIZE
+    wolfStackPointer = wc_GetStackPosition();
+    wc_CalcFuncOverhead();
+#endif
+
         func_args args;
 
 #ifdef HAVE_WNR
@@ -761,6 +818,9 @@ int wolfcrypt_test(void* args)
 #ifdef WOLFSSL_MD2
 int md2_test()
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Md2  md2;
     byte hash[MD2_DIGEST_SIZE];
 
@@ -830,6 +890,11 @@ int md2_test()
             return -155 - i;
     }
 
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
+
     return 0;
 }
 #endif
@@ -837,6 +902,9 @@ int md2_test()
 #ifndef NO_MD5
 int md5_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Md5  md5;
     byte hash[MD5_DIGEST_SIZE];
 
@@ -892,6 +960,11 @@ int md5_test(void)
             return -5 - i;
     }
 
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
+
     return 0;
 }
 #endif /* NO_MD5 */
@@ -901,6 +974,9 @@ int md5_test(void)
 
 int md4_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Md4  md4;
     byte hash[MD4_DIGEST_SIZE];
 
@@ -969,6 +1045,10 @@ int md4_test(void)
         if (XMEMCMP(hash, test_md4[i].output, MD4_DIGEST_SIZE) != 0)
             return -205 - i;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -979,6 +1059,9 @@ int md4_test(void)
 
 int sha_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Sha  sha;
     byte hash[SHA_DIGEST_SIZE];
 
@@ -1030,6 +1113,10 @@ int sha_test(void)
         if (XMEMCMP(hash, test_sha[i].output, SHA_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1039,6 +1126,9 @@ int sha_test(void)
 #ifdef WOLFSSL_RIPEMD
 int ripemd_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     RipeMd  ripemd;
     byte hash[RIPEMD_DIGEST_SIZE];
 
@@ -1086,6 +1176,10 @@ int ripemd_test(void)
         if (XMEMCMP(hash, test_ripemd[i].output, RIPEMD_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1135,6 +1229,9 @@ static const byte blake2b_vec[BLAKE2_TESTS][BLAKE2B_OUTBYTES] =
 
 int blake2b_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Blake2b b2b;
     byte    digest[64];
     byte    input[64];
@@ -1160,6 +1257,10 @@ int blake2b_test(void)
             return -300 - i;
         }
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1216,6 +1317,9 @@ int sha224_test(void)
 #ifndef NO_SHA256
 int sha256_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Sha256 sha;
     byte   hash[SHA256_DIGEST_SIZE];
 
@@ -1256,6 +1360,10 @@ int sha256_test(void)
         if (XMEMCMP(hash, test_sha[i].output, SHA256_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1265,6 +1373,9 @@ int sha256_test(void)
 #ifdef WOLFSSL_SHA512
 int sha512_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Sha512 sha;
     byte   hash[SHA512_DIGEST_SIZE];
     int    ret;
@@ -1311,6 +1422,10 @@ int sha512_test(void)
         if (XMEMCMP(hash, test_sha[i].output, SHA512_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1320,6 +1435,9 @@ int sha512_test(void)
 #ifdef WOLFSSL_SHA384
 int sha384_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Sha384 sha;
     byte   hash[SHA384_DIGEST_SIZE];
     int    ret;
@@ -1364,6 +1482,10 @@ int sha384_test(void)
         if (XMEMCMP(hash, test_sha[i].output, SHA384_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1373,6 +1495,9 @@ int sha384_test(void)
 #if !defined(NO_HMAC) && !defined(NO_MD5)
 int hmac_md5_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Hmac hmac;
     byte hash[MD5_DIGEST_SIZE];
 
@@ -1445,6 +1570,10 @@ int hmac_md5_test(void)
         wc_HmacAsyncFree(&hmac);
     #endif
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1453,6 +1582,9 @@ int hmac_md5_test(void)
 #if !defined(NO_HMAC) && !defined(NO_SHA)
 int hmac_sha_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Hmac hmac;
     byte hash[SHA_DIGEST_SIZE];
 
@@ -1522,6 +1654,10 @@ int hmac_sha_test(void)
         wc_HmacAsyncFree(&hmac);
 #endif
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1609,6 +1745,9 @@ int hmac_sha224_test(void)
 #if !defined(NO_HMAC) && !defined(NO_SHA256)
 int hmac_sha256_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Hmac hmac;
     byte hash[SHA256_DIGEST_SIZE];
 
@@ -1681,6 +1820,10 @@ int hmac_sha256_test(void)
         wc_HmacAsyncFree(&hmac);
 #endif
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1690,6 +1833,9 @@ int hmac_sha256_test(void)
 #if !defined(NO_HMAC) && defined(HAVE_BLAKE2)
 int hmac_blake2b_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Hmac hmac;
     byte hash[BLAKE2B_256];
 
@@ -1767,6 +1913,10 @@ int hmac_blake2b_test(void)
         wc_HmacAsyncFree(&hmac);
 #endif
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1776,6 +1926,9 @@ int hmac_blake2b_test(void)
 #if !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
 int hmac_sha384_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Hmac hmac;
     byte hash[SHA384_DIGEST_SIZE];
 
@@ -1844,6 +1997,10 @@ int hmac_sha384_test(void)
         if (XMEMCMP(hash, test_hmac[i].output, SHA384_DIGEST_SIZE) != 0)
             return -20 - i;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1853,6 +2010,9 @@ int hmac_sha384_test(void)
 #if !defined(NO_HMAC) && defined(WOLFSSL_SHA512)
 int hmac_sha512_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Hmac hmac;
     byte hash[SHA512_DIGEST_SIZE];
 
@@ -1924,6 +2084,10 @@ int hmac_sha512_test(void)
         if (XMEMCMP(hash, test_hmac[i].output, SHA512_DIGEST_SIZE) != 0)
             return -20 - i;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -1933,6 +2097,9 @@ int hmac_sha512_test(void)
 #ifndef NO_RC4
 int arc4_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     byte cipher[16];
     byte plain[16];
 
@@ -2006,6 +2173,10 @@ int arc4_test(void)
         wc_Arc4AsyncFree(&dec);
     #endif
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -2015,6 +2186,9 @@ int arc4_test(void)
 int hc128_test(void)
 {
 #ifdef HAVE_HC128
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     byte cipher[16];
     byte plain[16];
 
@@ -2093,6 +2267,10 @@ int hc128_test(void)
         if (XMEMCMP(cipher, test_hc128[i].output, test_hc128[i].outLen))
             return -120 - 5 - i;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
 #endif /* HAVE_HC128 */
     return 0;
@@ -2102,6 +2280,9 @@ int hc128_test(void)
 #ifndef NO_RABBIT
 int rabbit_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     byte cipher[16];
     byte plain[16];
 
@@ -2169,6 +2350,10 @@ int rabbit_test(void)
         if (XMEMCMP(cipher, test_rabbit[i].output, test_rabbit[i].outLen))
             return -130 - 5 - i;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -2178,6 +2363,9 @@ int rabbit_test(void)
 #ifdef HAVE_CHACHA
 int chacha_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     ChaCha enc;
     ChaCha dec;
     byte   cipher[128];
@@ -2303,6 +2491,10 @@ int chacha_test(void)
 
     if (XMEMCMP(plain + 64, sliver, 64))
         return -140;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -2312,6 +2504,9 @@ int chacha_test(void)
 #ifdef HAVE_POLY1305
 int poly1305_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     int      ret = 0;
     int      i;
     byte     tag[16];
@@ -2457,6 +2652,10 @@ int poly1305_test(void)
 
     if (XMEMCMP(tag, correct4, sizeof(tag)) == 0)
         return -66;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
 
     return 0;
@@ -2467,6 +2666,9 @@ int poly1305_test(void)
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 int chacha20_poly1305_aead_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     /* Test #1 from Section 2.8.2 of draft-irtf-cfrg-chacha20-poly1305-10 */
     /* https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-10  */
 
@@ -2717,6 +2919,10 @@ int chacha20_poly1305_aead_test(void)
     {
         return -1069;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return err;
 }
@@ -2726,6 +2932,9 @@ int chacha20_poly1305_aead_test(void)
 #ifndef NO_DES3
 int des_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     const byte vector[] = { /* "now is the time for all " w/o trailing 0 */
         0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
@@ -2772,6 +2981,10 @@ int des_test(void)
     ret = wc_Des_CbcDecrypt(&dec, plain, cipher, sizeof(cipher));
     if (ret != 0)
         return -34;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     if (XMEMCMP(plain, vector, sizeof(plain)))
         return -35;
@@ -2787,6 +3000,9 @@ int des_test(void)
 #ifndef NO_DES3
 int des3_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     const byte vector[] = { /* "Now is the time for all " w/o trailing 0 */
         0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
@@ -2852,6 +3068,10 @@ int des3_test(void)
     wc_Des3AsyncFree(&enc);
     wc_Des3AsyncFree(&dec);
 #endif
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
     return 0;
 }
 #endif /* NO_DES */
@@ -2860,6 +3080,9 @@ int des3_test(void)
 #ifndef NO_AES
 int aes_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER)
     Aes enc;
     Aes dec;
@@ -3210,6 +3433,10 @@ int aes_test(void)
             return -20007;
     }
 #endif /* WOLFSSL_AES_DIRECT */
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return ret;
 }
@@ -3218,6 +3445,9 @@ int aes_test(void)
 #ifdef HAVE_AESGCM
 int aesgcm_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Aes enc;
 
     /*
@@ -3362,12 +3592,19 @@ int aesgcm_test(void)
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -233;
 #endif /* HAVE_FIPS */
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
 
 int gmac_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Gmac gmac;
 
     const byte k1[] =
@@ -3451,6 +3688,10 @@ int gmac_test(void)
     wc_GmacUpdate(&gmac, iv3, sizeof(iv3), a3, sizeof(a3), tag, sizeof(t3));
     if (XMEMCMP(t3, tag, sizeof(t3)) != 0)
         return -128;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -3459,6 +3700,9 @@ int gmac_test(void)
 #ifdef HAVE_AESCCM
 int aesccm_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Aes enc;
 
     /* key */
@@ -3543,6 +3787,10 @@ int aesccm_test(void)
     XMEMSET(c2, 0, sizeof(c2));
     if (XMEMCMP(p2, c2, sizeof(p2)))
         return -112;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -3753,6 +4001,9 @@ typedef struct {
 
 int camellia_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     /* Camellia ECB Test Plaintext */
     static const byte pte[] =
     {
@@ -3929,6 +4180,10 @@ int camellia_test(void)
     /* Key should have a size of 16, 24, or 32 */
     if (wc_CamelliaSetKey(&cam, k1, 0, NULL) == 0)
         return -1;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -3937,6 +4192,9 @@ int camellia_test(void)
 #ifdef HAVE_IDEA
 int idea_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     int ret;
     word16 i, j;
 
@@ -4172,7 +4430,10 @@ int idea_test(void)
 
         wc_FreeRng(&rng);
     }
-#endif /* WC_NO_RNG */
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -4182,6 +4443,9 @@ int idea_test(void)
 #ifndef WC_NO_RNG
 static int random_rng_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     WC_RNG rng;
     byte block[32];
     int ret, i;
@@ -4213,6 +4477,10 @@ static int random_rng_test(void)
 exit:
     /* Make sure and free RNG */
     wc_FreeRng(&rng);
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return ret;
 }
@@ -4221,6 +4489,9 @@ exit:
 
 int random_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     const byte test1Entropy[] =
     {
         0xa6, 0x5a, 0xd0, 0xf3, 0x45, 0xdb, 0x4e, 0x0e, 0xff, 0xe8, 0x75, 0xc3,
@@ -4292,6 +4563,10 @@ int random_test(void)
 
     /* Basic RNG generate block test */
     random_rng_test();
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -4524,6 +4799,9 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
 int certext_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     DecodedCert cert;
     byte*       tmp;
     size_t      bytes;
@@ -4710,6 +4988,10 @@ int certext_test(void)
 
     FreeDecodedCert(&cert);
     XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -4718,6 +5000,9 @@ int certext_test(void)
 
 int rsa_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     byte*   tmp;
     size_t bytes;
     RsaKey key;
@@ -4854,6 +5139,10 @@ int rsa_test(void)
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -48;
     }
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     #ifndef WC_NO_RSA_OAEP
     /* OAEP padding testing */
@@ -6287,6 +6576,9 @@ int rsa_test(void)
 
 int dh_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     int    ret;
     word32 bytes;
     word32 idx = 0, privSz, pubSz, privSz2, pubSz2, agreeSz, agreeSz2;
@@ -6364,6 +6656,10 @@ int dh_test(void)
     wc_FreeDhKey(&key);
     wc_FreeDhKey(&key2);
     wc_FreeRng(&rng);
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -6383,6 +6679,9 @@ int dh_test(void)
 
 int dsa_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     int    ret, answer;
     word32 bytes;
     word32 idx = 0;
@@ -6536,6 +6835,10 @@ int dsa_test(void)
 #endif /* WOLFSSL_KEY_GEN */
 
     wc_FreeRng(&rng);
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
     return 0;
 }
 
@@ -6562,6 +6865,9 @@ static int generate_random_salt(byte *buf, word32 size)
 
 int srp_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     Srp cli, srv;
     int r;
 
@@ -6652,6 +6958,10 @@ int srp_test(void)
 
     wc_SrpTerm(&cli);
     wc_SrpTerm(&srv);
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return r;
 }
@@ -6662,6 +6972,9 @@ int srp_test(void)
 
 int openssl_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     EVP_MD_CTX md_ctx;
     testVector a, b, c, d, e, f;
     byte       hash[SHA256_DIGEST_SIZE*2];  /* max size */
@@ -6976,6 +7289,10 @@ int openssl_test(void)
 #endif
 
 #endif /* NO_AES */
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
 #define OPENSSL_TEST_ERROR (-10000)
 
@@ -7446,6 +7763,9 @@ int scrypt_test(void)
 
 int pkcs12_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     const byte passwd[] = { 0x00, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67,
                             0x00, 0x00 };
     const byte salt[] =   { 0x0a, 0x58, 0xCF, 0x64, 0x53, 0x0d, 0x82, 0x3f };
@@ -7489,6 +7809,10 @@ int pkcs12_test(void)
                                        iterations, kLen, SHA256, id, HEAP_HINT);
     if (ret < 0)
         return -106;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     if ( (ret = XMEMCMP(derived, verify2, 24)) != 0)
         return -107;
@@ -7499,6 +7823,9 @@ int pkcs12_test(void)
 
 int pbkdf2_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     char passwd[] = "passwordpassword";
     const byte salt[] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
     int   iterations = 2048;
@@ -7517,6 +7844,10 @@ int pbkdf2_test(void)
 
     if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
         return -102;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 
@@ -7526,6 +7857,9 @@ int pbkdf2_test(void)
 #ifndef NO_SHA
 int pbkdf1_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     char passwd[] = "password";
     const byte salt[] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
     int   iterations = 1000;
@@ -7542,6 +7876,10 @@ int pbkdf1_test(void)
 
     if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
         return -101;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -7569,6 +7907,9 @@ int pwdbased_test(void)
 
 int hkdf_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     int ret;
     int L = 42;
     byte okm1[42];
@@ -7648,6 +7989,10 @@ int hkdf_test(void)
         return -2007;
 #endif /* HAVE_FIPS */
 #endif /* NO_SHA256 */
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -8336,6 +8681,9 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
 
 int ecc_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     int ret;
     WC_RNG  rng;
 
@@ -8431,6 +8779,10 @@ int ecc_test(void)
 
 done:
     wc_FreeRng(&rng);
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return ret;
 }
@@ -8439,6 +8791,9 @@ done:
 
 int ecc_encrypt_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     WC_RNG  rng;
     int     ret;
     ecc_key userA, userB;
@@ -8562,6 +8917,10 @@ int ecc_encrypt_test(void)
     wc_ecc_free(&userB);
     wc_ecc_free(&userA);
     wc_FreeRng(&rng);
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -8660,6 +9019,9 @@ int ecc_test_buffers() {
 
 int curve25519_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     WC_RNG  rng;
 #ifdef HAVE_CURVE25519_SHARED_SECRET
     byte    sharedA[32];
@@ -8829,6 +9191,10 @@ int curve25519_test(void)
     wc_curve25519_free(&userA);
 
     wc_FreeRng(&rng);
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -8838,6 +9204,9 @@ int curve25519_test(void)
 #ifdef HAVE_ED25519
 int ed25519_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     WC_RNG rng;
 #if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_EXPORT) &&\
     defined(HAVE_ED25519_KEY_IMPORT)
@@ -9257,6 +9626,10 @@ int ed25519_test(void)
     /* hush warnings of unused keySz and sigSz */
     (void)keySz;
     (void)sigSz;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return 0;
 }
@@ -9532,6 +9905,9 @@ const byte sample_text[] =
 
 int compress_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     int ret = 0;
     word32 dSz = sizeof(sample_text);
     word32 cSz = (dSz + (word32)(dSz * 0.001) + 12);
@@ -9564,6 +9940,10 @@ int compress_test(void)
 
     if (c) XFREE(c, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (d) XFREE(d, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return ret;
 }
@@ -9603,6 +9983,9 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                                       byte* eccCert, word32 eccCertSz,
                                       byte* eccPrivKey,  word32 eccPrivKeySz)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     int ret, testSz, i;
     int envelopedSz, decodedSz;
 
@@ -10052,12 +10435,19 @@ int pkcs7encrypted_test(void)
 
     if (ret > 0)
         return 0;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return ret;
 }
 
 int pkcs7signed_test(void)
 {
+    #ifdef HAVE_STACK_SIZE
+        size_t end;
+    #endif
     int ret = 0;
 
     FILE* file;
@@ -10260,6 +10650,10 @@ int pkcs7signed_test(void)
 
     if (ret > 0)
         return 0;
+#ifdef HAVE_STACK_SIZE
+    end = wc_GetStackPosition();
+    stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
+#endif
 
     return ret;
 }
