@@ -2506,6 +2506,32 @@ void bench_ed25519KeySign(void)
         return (double)count.QuadPart / freq.QuadPart;
     }
 
+#elif defined MICROCHIP_PIC24
+    #ifdef EXP_16_32_EXAMPLE_PIC24FJ1024GB610_PIM
+        #include "../../../wolfcrypt-benchmark.X/mcc_generated_files/tmr1.h"
+    #else
+        #error "Please locate the correct timer header and place here"
+    #endif
+    double temp = 0.0;
+/* Still experiencing roll-overs need to resolve. shifting focus to TLS
+ * support for the time being */
+//    void TMR1_CallBack(void) {
+//        double temp = TMR1_Counter16BitGet();
+//        (void) temp;
+//    }
+
+    double current_time(int reset) {
+
+        uint16_t ns;
+        if (reset) {
+            TMR1_SoftwareCounterClear();
+        }
+
+        ns = TMR1_Counter16BitGet();
+
+        return ns / 1000.0;
+    }
+
 #elif defined MICROCHIP_PIC32
     #if defined(WOLFSSL_MICROCHIP_PIC32MZ)
         #define CLOCK 80000000.0
