@@ -42,7 +42,9 @@
 #include "examples/client/client.h"
 
 
+#ifndef NO_SHA256
 void file_test(const char* file, byte* hash);
+#endif
 
 void simple_test(func_args*);
 
@@ -84,12 +86,6 @@ int testsuite_test(int argc, char** argv)
     int num = 6;
 #endif
 
-#ifdef HAVE_CAVIUM
-        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-        if (ret != 0)
-            err_sys("Cavium OpenNitroxDevice failed");
-#endif /* HAVE_CAVIUM */
-
 #ifdef HAVE_WNR
         if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0) {
             err_sys("Whitewood netRandom global config failed");
@@ -108,7 +104,7 @@ int testsuite_test(int argc, char** argv)
 #endif
 
 #if !defined(WOLFSSL_TIRTOS)
-	ChangeToWolfRoot();
+    ChangeToWolfRoot();
 #endif
 
 #ifdef WOLFSSL_TIRTOS
@@ -187,14 +183,18 @@ int testsuite_test(int argc, char** argv)
 
     /* validate output equals input */
     {
+    #ifndef NO_SHA256
         byte input[SHA256_DIGEST_SIZE];
         byte output[SHA256_DIGEST_SIZE];
 
         file_test("input",  input);
         file_test(outputName, output);
+    #endif
         remove(outputName);
+    #ifndef NO_SHA256
         if (memcmp(input, output, sizeof(input)) != 0)
             return EXIT_FAILURE;
+    #endif
     }
 
     wolfSSL_Cleanup();
@@ -204,17 +204,13 @@ int testsuite_test(int argc, char** argv)
     fdCloseSession(Task_self());
 #endif
 
-#ifdef HAVE_CAVIUM
-        CspShutdown(CAVIUM_DEV_ID);
-#endif
-
 #ifdef HAVE_WNR
     if (wc_FreeNetRandom() < 0)
         err_sys("Failed to free netRandom context");
 #endif /* HAVE_WNR */
 
     printf("\nAll tests passed!\n");
-    return EXIT_SUCCESS;
+    EXIT_TEST(EXIT_SUCCESS);
 }
 
 void simple_test(func_args* args)
@@ -335,7 +331,7 @@ void join_thread(THREAD_TYPE thread)
 #elif defined(WOLFSSL_TIRTOS)
     while(1) {
         if (Task_getMode(thread) == Task_Mode_TERMINATED) {
-		    Task_sleep(5);
+            Task_sleep(5);
             break;
         }
         Task_yield();
@@ -350,6 +346,7 @@ void join_thread(THREAD_TYPE thread)
 }
 
 
+#ifndef NO_SHA256
 void file_test(const char* file, byte* check)
 {
     FILE* f;
@@ -392,7 +389,7 @@ void file_test(const char* file, byte* check)
 
     fclose(f);
 }
-
+#endif
 
 #else /* SINGLE_THREADED */
 
@@ -414,7 +411,8 @@ int main(int argc, char** argv)
     if (server_args.return_code != 0) return server_args.return_code;
 
     printf("\nAll tests passed!\n");
-    return EXIT_SUCCESS;
+
+    EXIT_TEST(EXIT_SUCCESS);
 }
 
 

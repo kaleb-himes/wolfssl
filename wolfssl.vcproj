@@ -260,6 +260,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\pkcs12.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\poly1305.c"
 				>
 			</File>
@@ -313,6 +317,10 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\wc_encrypt.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wolfevent.c"
 				>
 			</File>
 		</Filter>

@@ -104,7 +104,26 @@ ASN Options:
 #endif
 
 #ifndef NO_ASN_TIME
-#if defined(HAVE_RTP_SYS)
+#if defined(USER_TIME)
+    /* user time, and gmtime compatible functions, there is a gmtime
+       implementation here that WINCE uses, so really just need some ticks
+       since the EPOCH
+    */
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+    #define USE_WOLF_TIME_T
+
+#elif defined(TIME_OVERRIDES)
+    /* user would like to override time() and gmtime() functionality */
+    #ifndef HAVE_TIME_T_TYPE
+        #define USE_WOLF_TIME_T
+    #endif
+    #ifndef HAVE_TM_TYPE
+        #define USE_WOLF_TM
+    #endif
+    #define NEED_TMP_TIME
+
+#elif defined(HAVE_RTP_SYS)
     /* uses parital <time.h> structures */
     #define XTIME(tl)       (0)
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
@@ -127,29 +146,18 @@ ASN Options:
     #define XTIME(t1)       mqx_time((t1))
     #define HAVE_GMTIME_R
 
-#elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
+#elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
     #include <time.h>
-    #define XTIME(t1)       ksdk_time((t1))
+    #ifndef XTIME
+        #define XTIME(t1)   ksdk_time((t1))
+    #endif
     #define XGMTIME(c, t)   gmtime((c))
 
-#elif defined(USER_TIME)
-    /* user time, and gmtime compatible functions, there is a gmtime
-       implementation here that WINCE uses, so really just need some ticks
-       since the EPOCH
-    */
+#elif defined(WOLFSSL_ATMEL)
+    #define XTIME(t1)       atmel_get_curr_time_and_date((t1))
     #define WOLFSSL_GMTIME
     #define USE_WOLF_TM
     #define USE_WOLF_TIME_T
-
-#elif defined(TIME_OVERRIDES)
-    /* user would like to override time() and gmtime() functionality */
-    #ifndef HAVE_TIME_T_TYPE
-        #define USE_WOLF_TIME_T
-    #endif
-    #ifndef HAVE_TM_TYPE
-        #define USE_WOLF_TM
-    #endif
-    #define NEED_TMP_TIME
 
 #elif defined(IDIRECT_DEV_TIME)
     /*Gets the timestamp from cloak software owned by VT iDirect
@@ -222,6 +230,8 @@ ASN Options:
 #elif defined(TIME_OVERRIDES)
     extern time_t XTIME(time_t * timer);
     extern struct tm* XGMTIME(const time_t* timer, struct tm* tmp);
+#elif defined(WOLFSSL_GMTIME)
+    struct tm* gmtime(const time_t* timer);
 #endif
 
 
@@ -376,18 +386,8 @@ time_t mqx_time(time_t* timer)
 
 #if defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
 
-#include "fsl_pit_driver.h"
-
-time_t ksdk_time(time_t* timer)
-{
-    time_t localTime;
-
-    if (timer == NULL)
-        timer = &localTime;
-
-    *timer = (PIT_DRV_ReadTimerUs(PIT_INSTANCE, PIT_CHANNEL)) / 1000000;
-    return *timer;
-}
+/*  */
+//extern time_t ksdk_time(time_t* timer);
 
 #endif /* FREESCALE_KSDK_BM */
 
@@ -582,11 +582,14 @@ WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
 
 /* Windows header clash for WinCE using GetVersion */
 WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
-                               int* version)
+                               int* version, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
 
     WOLFSSL_ENTER("GetMyVersion");
+
+    if (idx + MIN_VERSION_SZ > maxIdx)
+        return  ASN_PARSE_E;
 
     if (input[idx++] != ASN_INTEGER)
         return ASN_PARSE_E;
@@ -603,18 +606,24 @@ WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
 
 #ifndef NO_PWDBASED
 /* Get small count integer, 32 bits or less */
-static int GetShortInt(const byte* input, word32* inOutIdx, int* number)
+int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
     word32 len;
 
     *number = 0;
 
+    if (idx + 2 > maxIdx) /*one for type and one for length */
+        return ASN_PARSE_E;
+
     if (input[idx++] != ASN_INTEGER)
         return ASN_PARSE_E;
 
     len = input[idx++];
     if (len > 4)
+        return ASN_PARSE_E;
+
+    if (len + idx > maxIdx)
         return ASN_PARSE_E;
 
     while (len--) {
@@ -629,14 +638,15 @@ static int GetShortInt(const byte* input, word32* inOutIdx, int* number)
 
 #ifndef NO_ASN_TIME
 /* May not have one, not an error */
-static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
+static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
+                              word32 maxIdx)
 {
     word32 idx = *inOutIdx;
 
     WOLFSSL_ENTER("GetExplicitVersion");
     if (input[idx++] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
         *inOutIdx = ++idx;  /* eat header */
-        return GetMyVersion(input, inOutIdx, version);
+        return GetMyVersion(input, inOutIdx, version, maxIdx);
     }
 
     /* go back as is */
@@ -646,7 +656,7 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
 }
 #endif /* !NO_ASN_TIME */
 
-WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
+int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                   word32 maxIdx)
 {
     word32 i = *inOutIdx;
@@ -676,11 +686,71 @@ WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
     return 0;
 }
 
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+static int GetIntRsa(RsaKey* key, mp_int* mpi, const byte* input,
+                        word32* inOutIdx, word32 maxIdx)
+{
+    word32 i = *inOutIdx;
+    byte   b = input[i++];
+    int    length;
+
+    (void)key;
+
+    if (b != ASN_INTEGER)
+        return ASN_PARSE_E;
+
+    if (GetLength(input, &i, &length, maxIdx) < 0)
+        return ASN_PARSE_E;
+
+    if (length > 0) {
+        /* remove leading zero */
+        if ( (b = input[i++]) == 0x00)
+            length--;
+        else
+            i--;
+    }
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
+        XMEMSET(mpi, 0, sizeof(mp_int));
+        mpi->used = length;
+    #ifdef USE_FAST_MATH
+        if (length > (FP_SIZE * (int)sizeof(fp_digit))) {
+            return MEMORY_E;
+        }
+        mpi->dpraw = (byte*)mpi->dp;
+    #else
+        mpi->dpraw = (byte*)XMALLOC(length, key->heap, DYNAMIC_TYPE_ASYNC_RSA);
+    #endif
+        if (mpi->dpraw == NULL) {
+            return MEMORY_E;
+        }
+
+        XMEMCPY(mpi->dpraw, input + i, length);
+    }
+    else
+#endif /* WOLFSSL_ASYNC_CRYPT && HAVE_CAVIUM */
+    {
+        if (mp_init(mpi) != MP_OKAY)
+            return MP_INIT_E;
+
+        if (mp_read_unsigned_bin(mpi, (byte*)input + i, length) != 0) {
+            mp_clear(mpi);
+            return ASN_GETINT_E;
+        }
+    }
+
+    *inOutIdx = i + length;
+    return 0;
+}
+#endif /* !NO_RSA && !HAVE_USER_RSA */
+
 
 /* hashType */
 static const byte hashMd2hOid[] = {42, 134, 72, 134, 247, 13, 2, 2};
 static const byte hashMd5hOid[] = {42, 134, 72, 134, 247, 13, 2, 5};
 static const byte hashSha1hOid[] = {43, 14, 3, 2, 26};
+static const byte hashSha224hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 4};
 static const byte hashSha256hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 1};
 static const byte hashSha384hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 2};
 static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
@@ -693,12 +763,14 @@ static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
     static const byte sigMd2wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 2};
     static const byte sigMd5wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 4};
     static const byte sigSha1wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 5};
+    static const byte sigSha224wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,14};
     static const byte sigSha256wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,11};
     static const byte sigSha384wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,12};
     static const byte sigSha512wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,13};
 #endif /* NO_RSA */
 #ifdef HAVE_ECC
     static const byte sigSha1wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 1};
+    static const byte sigSha224wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 1};
     static const byte sigSha256wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 2};
     static const byte sigSha384wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 3};
     static const byte sigSha512wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 4};
@@ -724,6 +796,9 @@ static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
 #endif /* HAVE_ECC */
 
 /* blkType */
+static const byte blkAes128CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 2};
+static const byte blkAes192CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 22};
+static const byte blkAes256CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 42};
 static const byte blkDesCbcOid[]  = {43, 14, 3, 2, 7};
 static const byte blkDes3CbcOid[] = {42, 134, 72, 134, 247, 13, 3, 7};
 
@@ -787,6 +862,10 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = hashSha1hOid;
                     *oidSz = sizeof(hashSha1hOid);
                     break;
+                case SHA224h:
+                    oid = hashSha224hOid;
+                    *oidSz = sizeof(hashSha224hOid);
+                    break;
                 case SHA256h:
                     oid = hashSha256hOid;
                     *oidSz = sizeof(hashSha256hOid);
@@ -823,6 +902,10 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = sigSha1wRsaOid;
                     *oidSz = sizeof(sigSha1wRsaOid);
                     break;
+                case CTC_SHA224wRSA:
+                    oid = sigSha224wRsaOid;
+                    *oidSz = sizeof(sigSha224wRsaOid);
+                    break;
                 case CTC_SHA256wRSA:
                     oid = sigSha256wRsaOid;
                     *oidSz = sizeof(sigSha256wRsaOid);
@@ -840,6 +923,10 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case CTC_SHAwECDSA:
                     oid = sigSha1wEcdsaOid;
                     *oidSz = sizeof(sigSha1wEcdsaOid);
+                    break;
+                case CTC_SHA224wECDSA:
+                    oid = sigSha224wEcdsaOid;
+                    *oidSz = sizeof(sigSha224wEcdsaOid);
                     break;
                 case CTC_SHA256wECDSA:
                     oid = sigSha256wEcdsaOid;
@@ -900,6 +987,18 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
         case oidBlkType:
             switch (id) {
+                case AES128CBCb:
+                    oid = blkAes128CbcOid;
+                    *oidSz = sizeof(blkAes128CbcOid);
+                    break;
+                case AES192CBCb:
+                    oid = blkAes192CbcOid;
+                    *oidSz = sizeof(blkAes192CbcOid);
+                    break;
+                case AES256CBCb:
+                    oid = blkAes256CbcOid;
+                    *oidSz = sizeof(blkAes256CbcOid);
+                    break;
                 case DESb:
                     oid = blkDesCbcOid;
                     *oidSz = sizeof(blkDesCbcOid);
@@ -1229,7 +1328,7 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
             #endif /* HAVE_OID_DECODING */
         #endif
 
-            if (checkOid != NULL && 
+            if (checkOid != NULL &&
                 (checkOidSz != actualOidSz ||
                     XMEMCMP(actualOid, checkOid, checkOidSz) != 0)) {
                 WOLFSSL_MSG("OID Check Failed");
@@ -1297,95 +1396,28 @@ WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
 
 #ifndef NO_RSA
 
-
-#ifdef HAVE_CAVIUM
-
-static int GetCaviumInt(byte** buff, word16* buffSz, const byte* input,
-                        word32* inOutIdx, word32 maxIdx, void* heap)
-{
-    word32 i = *inOutIdx;
-    byte   b = input[i++];
-    int    length;
-
-    if (b != ASN_INTEGER)
-        return ASN_PARSE_E;
-
-    if (GetLength(input, &i, &length, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    if ( (b = input[i++]) == 0x00)
-        length--;
-    else
-        i--;
-
-    *buffSz = (word16)length;
-    *buff   = XMALLOC(*buffSz, heap, DYNAMIC_TYPE_CAVIUM_RSA);
-    if (*buff == NULL)
-        return MEMORY_E;
-
-    XMEMCPY(*buff, input + i, *buffSz);
-
-    *inOutIdx = i + length;
-    return 0;
-}
-
-static int CaviumRsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
-                                     RsaKey* key, word32 inSz)
-{
-    int   version, length;
-    void* h = key->heap;
-
-    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
-
-    if (GetMyVersion(input, inOutIdx, &version) < 0)
-        return ASN_PARSE_E;
-
-    key->type = RSA_PRIVATE;
-
-    if (GetCaviumInt(&key->c_n,  &key->c_nSz,   input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_e,  &key->c_eSz,   input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_d,  &key->c_dSz,   input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_p,  &key->c_pSz,   input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_q,  &key->c_qSz,   input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_dP, &key->c_dP_Sz, input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_dQ, &key->c_dQ_Sz, input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_u,  &key->c_uSz,   input, inOutIdx, inSz, h) < 0 )
-            return ASN_RSA_KEY_E;
-
-    return 0;
-}
-
-
-#endif /* HAVE_CAVIUM */
-
 #ifndef HAVE_USER_RSA
 int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                         word32 inSz)
 {
-    int    version, length;
-
-#ifdef HAVE_CAVIUM
-    if (key->magic == WOLFSSL_RSA_CAVIUM_MAGIC)
-        return CaviumRsaPrivateKeyDecode(input, inOutIdx, key, inSz);
-#endif
+    int version, length;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if (GetMyVersion(input, inOutIdx, &version) < 0)
+    if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
         return ASN_PARSE_E;
 
     key->type = RSA_PRIVATE;
 
-    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->e,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->d,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->dP, input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->dQ, input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->u,  input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
+    if (GetIntRsa(key, &key->n,  input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->e,  input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->d,  input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->p,  input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->q,  input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->dP, input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->dQ, input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->u,  input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
 
     return 0;
 }
@@ -1401,7 +1433,7 @@ int ToTraditional(byte* input, word32 sz)
     if (GetSequence(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetMyVersion(input, &inOutIdx, &version) < 0)
+    if (GetMyVersion(input, &inOutIdx, &version, sz) < 0)
         return ASN_PARSE_E;
 
     if (GetAlgoId(input, &inOutIdx, &oid, oidKeyType, sz) < 0)
@@ -1426,6 +1458,108 @@ int ToTraditional(byte* input, word32 sz)
     return length;
 }
 
+
+/* check that the private key is a pair for the public key in certificate
+ * return 1 (true) on match
+ * return 0 or negative value on failure/error
+ *
+ * key   : buffer holding DER fromat key
+ * keySz : size of key buffer
+ * der   : a initialized and parsed DecodedCert holding a certificate */
+int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
+{
+    if (key == NULL || der == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    #if !defined(NO_RSA)
+    {
+        RsaKey a, b;
+        word32 keyIdx = 0;
+        int    ret    = 0;
+
+        /* test if RSA key */
+        if (der->keyOID == RSAk) {
+            if (wc_InitRsaKey(&a, NULL) == 0 &&
+                wc_RsaPrivateKeyDecode(key, &keyIdx, &a, keySz) == 0) {
+                WOLFSSL_MSG("Checking RSA key pair");
+                keyIdx = 0; /* reset to 0 for parsing public key */
+
+                if (wc_InitRsaKey(&b, NULL) == 0) {
+                    if ((ret = wc_RsaPublicKeyDecode(der->publicKey, &keyIdx,
+                                                   &b, der->pubKeySize)) == 0) {
+                        /* limit for user RSA crypto because of RsaKey
+                         * dereference. */
+                        #if defined(HAVE_USER_RSA)
+                            WOLFSSL_MSG("Cannot verify RSA pair with user RSA");
+                            wc_FreeRsaKey(&b);
+                            wc_FreeRsaKey(&a);
+                            return 1; /* return first RSA cert as match */
+                        #else
+                        /* both keys extracted successfully now check n and e
+                         * values are the same. This is dereferencing RsaKey */
+                        if (mp_cmp(&(a.n), &(b.n)) != MP_EQ ||
+                            mp_cmp(&(a.e), &(b.e)) != MP_EQ) {
+                            ret = MP_CMP_E;
+                        }
+                        else {
+                            /* match found, free keys and return success */
+                            wc_FreeRsaKey(&b);
+                            wc_FreeRsaKey(&a);
+                            return 1;
+                        }
+                        #endif
+                    }
+                    wc_FreeRsaKey(&b);
+                }
+            }
+            wc_FreeRsaKey(&a);
+        }
+
+        /* if ret is not 0 then there was a failed comparision attempt */
+        if (ret != 0) {
+            return ret;
+        }
+    }
+    #endif /* NO_RSA */
+
+    #ifdef HAVE_ECC
+    {
+        int ret = 0;
+        word32  keyIdx = 0;
+        ecc_key key_pair;
+
+        if (der->keyOID == ECDSAk) {
+            if ((ret = wc_ecc_init(&key_pair)) == 0 &&
+                wc_EccPrivateKeyDecode(key, &keyIdx, &key_pair, keySz) == 0) {
+                WOLFSSL_MSG("Checking ECC key pair");
+                keyIdx = 0;
+                if ((ret = wc_ecc_import_x963(der->publicKey, der->pubKeySize,
+                                                             &key_pair)) == 0) {
+                    /* public and private extracted successfuly no check if is
+                     * a pair and also do sanity checks on key. wc_ecc_check_key
+                     * checks that private * base generator equals pubkey */
+                    if ((ret = wc_ecc_check_key(&key_pair)) == 0) {
+                        /* found a match */
+                        wc_ecc_free(&key_pair);
+                        return 1;
+                    }
+
+                }
+            }
+            wc_ecc_free(&key_pair);
+        }
+
+        /* error on attempt to match */
+        if (ret != 0) {
+            return ret;
+        }
+    }
+    #endif /* HAVE_ECC */
+
+    /* no match found */
+    return 0;
+}
 
 #ifndef NO_PWDBASED
 
@@ -1723,7 +1857,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     XMEMCPY(salt, &input[inOutIdx], saltSz);
     inOutIdx += saltSz;
 
-    if (GetShortInt(input, &inOutIdx, &iterations) < 0) {
+    if (GetShortInt(input, &inOutIdx, &iterations, sz) < 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1811,6 +1945,150 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     return ToTraditional(input, length);
 }
 
+/* decrypt PKCS */
+int DecryptContent(byte* input, word32 sz,const char* password,int passwordSz)
+{
+    word32 inOutIdx = 0, oid;
+    int    ret;
+    int    first, second, length, version, saltSz, id;
+    int    iterations = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    byte*  salt = NULL;
+    byte*  cbcIv = NULL;
+#else
+    byte   salt[MAX_SALT_SIZE];
+    byte   cbcIv[MAX_IV_SIZE];
+#endif
+
+    if (GetAlgoId(input, &inOutIdx, &oid, oidSigType, sz) < 0)
+        return ASN_PARSE_E;
+
+    first  = input[inOutIdx - 2];   /* PKCS version always 2nd to last byte */
+    second = input[inOutIdx - 1];   /* version.algo, algo id last byte */
+
+    if (CheckAlgo(first, second, &id, &version) < 0)
+        return ASN_INPUT_E;  /* Algo ID error */
+
+    if (version == PKCS5v2) {
+
+        if (GetSequence(input, &inOutIdx, &length, sz) < 0)
+            return ASN_PARSE_E;
+
+        if (GetAlgoId(input, &inOutIdx, &oid, oidKdfType, sz) < 0)
+            return ASN_PARSE_E;
+
+        if (oid != PBKDF2_OID)
+            return ASN_PARSE_E;
+    }
+
+    if (GetSequence(input, &inOutIdx, &length, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (input[inOutIdx++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+
+    if (GetLength(input, &inOutIdx, &saltSz, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (saltSz > MAX_SALT_SIZE)
+        return ASN_PARSE_E;
+
+#ifdef WOLFSSL_SMALL_STACK
+    salt = (byte*)XMALLOC(MAX_SALT_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (salt == NULL)
+        return MEMORY_E;
+#endif
+
+    XMEMCPY(salt, &input[inOutIdx], saltSz);
+    inOutIdx += saltSz;
+
+    if (GetShortInt(input, &inOutIdx, &iterations, sz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ASN_PARSE_E;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    cbcIv = (byte*)XMALLOC(MAX_IV_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cbcIv == NULL) {
+        XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    if (version == PKCS5v2) {
+        /* get encryption algo */
+        /* JOHN: New type. Need a little more research. */
+        if (GetAlgoId(input, &inOutIdx, &oid, oidBlkType, sz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return ASN_PARSE_E;
+        }
+
+        if (CheckAlgoV2(oid, &id) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return ASN_PARSE_E;  /* PKCS v2 algo id error */
+        }
+
+        if (input[inOutIdx++] != ASN_OCTET_STRING) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return ASN_PARSE_E;
+        }
+
+        if (GetLength(input, &inOutIdx, &length, sz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return ASN_PARSE_E;
+        }
+
+        XMEMCPY(cbcIv, &input[inOutIdx], length);
+        inOutIdx += length;
+    }
+
+    if (input[inOutIdx++] != ASN_LONG_LENGTH) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    if (GetLength(input, &inOutIdx, &length, sz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    if ((ret = DecryptKey(password, passwordSz, salt, saltSz, iterations, id,
+                   input + inOutIdx, length, version, cbcIv)) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;  /* decrypt failure */
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    XMEMMOVE(input, input + inOutIdx, length);
+    return length;
+}
 #endif /* NO_PWDBASED */
 
 #ifndef NO_RSA
@@ -1820,6 +2098,10 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                        word32 inSz)
 {
     int    length;
+
+    if (input == NULL || inOutIdx == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
@@ -2003,7 +2285,7 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if (GetMyVersion(input, inOutIdx, &version) < 0)
+    if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
         return ASN_PARSE_E;
 
     if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
@@ -2179,6 +2461,8 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extExtKeyUsageSet = 0;
     cert->extExtKeyUsage    = 0;
     cert->isCA            = 0;
+    cert->pathLengthSet   = 0;
+    cert->pathLength      = 0;
 #ifdef HAVE_PKCS7
     cert->issuerRaw       = NULL;
     cert->issuerRawLen    = 0;
@@ -2214,8 +2498,6 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     XMEMSET(&cert->subjectName, 0, sizeof(DecodedName));
     cert->extBasicConstSet = 0;
     cert->extBasicConstCrit = 0;
-    cert->extBasicConstPlSet = 0;
-    cert->pathLength = 0;
     cert->extSubjAltNameSet = 0;
     cert->extSubjAltNameCrit = 0;
     cert->extAuthKeyIdCrit = 0;
@@ -2328,7 +2610,8 @@ static int GetCertHeader(DecodedCert* cert)
         return ASN_PARSE_E;
     cert->sigIndex = len + cert->srcIdx;
 
-    if (GetExplicitVersion(cert->source, &cert->srcIdx, &cert->version) < 0)
+    if (GetExplicitVersion(cert->source, &cert->srcIdx, &cert->version,
+                                                              cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
     if (GetSerialNumber(cert->source, &cert->srcIdx, cert->serial,
@@ -3196,6 +3479,7 @@ static int GetDate(DecodedCert* cert, int dateType)
     byte   b;
     word32 startIdx = 0;
 
+    XMEMSET(date, 0, MAX_DATE_SIZE);
     if (dateType == BEFORE)
         cert->beforeDate = &cert->source[cert->srcIdx];
     else
@@ -3516,6 +3800,10 @@ int wc_GetCTC_HashOID(int type)
         case SHA:
             return SHAh;
 #endif
+#ifdef WOLFSSL_SHA224
+        case SHA224:
+            return SHA224h;
+#endif
 #ifndef NO_SHA256
         case SHA256:
             return SHA256h;
@@ -3583,6 +3871,15 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         if (wc_ShaHash(buf, bufSz, digest) == 0) {
             typeH    = SHAh;
             digestSz = SHA_DIGEST_SIZE;
+        }
+        break;
+    #endif
+    #ifdef WOLFSSL_SHA224
+        case CTC_SHA224wRSA:
+        case CTC_SHA224wECDSA:
+        if (wc_Sha224Hash(buf, bufSz, digest) == 0) {
+            typeH    = SHA224h;
+            digestSz = SHA224_DIGEST_SIZE;
         }
         break;
     #endif
@@ -3674,11 +3971,22 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             else {
                 XMEMCPY(plain, sig, sigSz);
 
-                if ((verifySz = wc_RsaSSL_VerifyInline(plain, sigSz, &out,
-                                                                 pubKey)) < 0) {
+                ret = 0;
+                do {
+                #if defined(WOLFSSL_ASYNC_CRYPT)
+                    ret = wc_RsaAsyncWait(ret, pubKey);
+                #endif
+                    if (ret >= 0) {
+                        ret = wc_RsaSSL_VerifyInline(plain, sigSz, &out,
+                                                                    pubKey);
+                    }
+                } while (ret == WC_PENDING_E);
+
+                if (ret < 0) {
                     WOLFSSL_MSG("Rsa SSL verify error");
                 }
                 else {
+                    verifySz = ret;
                     /* make sure we're right justified */
                     encodedSigSz =
                         wc_EncodeSignature(encodedSig, digest, digestSz, typeH);
@@ -3778,6 +4086,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             WOLFSSL_MSG("Verify Key type unknown");
     }
 
+    (void)digestSz;
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -3991,7 +4300,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                                         DYNAMIC_TYPE_ALTNAME);
             if (dnsEntry == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
-                return ASN_PARSE_E;
+                return MEMORY_E;
             }
 
             dnsEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
@@ -3999,7 +4308,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             if (dnsEntry->name == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
                 XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
-                return ASN_PARSE_E;
+                return MEMORY_E;
             }
 
             XMEMCPY(dnsEntry->name, &input[idx], strLen);
@@ -4027,7 +4336,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                                         DYNAMIC_TYPE_ALTNAME);
             if (emailEntry == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
-                return ASN_PARSE_E;
+                return MEMORY_E;
             }
 
             emailEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
@@ -4035,7 +4344,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             if (emailEntry->name == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
                 XFREE(emailEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
-                return ASN_PARSE_E;
+                return MEMORY_E;
             }
 
             XMEMCPY(emailEntry->name, &input[idx], strLen);
@@ -4181,25 +4490,23 @@ static int DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
     if (input[idx++])
         cert->isCA = 1;
 
-    #ifdef OPENSSL_EXTRA
-        /* If there isn't any more data, return. */
-        if (idx >= (word32)sz)
-            return 0;
+    /* If there isn't any more data, return. */
+    if (idx >= (word32)sz)
+        return 0;
 
-        /* Anything left should be the optional pathlength */
-        if (input[idx++] != ASN_INTEGER) {
-            WOLFSSL_MSG("\tfail: pathlen not INTEGER");
-            return ASN_PARSE_E;
-        }
+    /* Anything left should be the optional pathlength */
+    if (input[idx++] != ASN_INTEGER) {
+        WOLFSSL_MSG("\tfail: pathlen not INTEGER");
+        return ASN_PARSE_E;
+    }
 
-        if (input[idx++] != 1) {
-            WOLFSSL_MSG("\tfail: pathlen too long");
-            return ASN_PARSE_E;
-        }
+    if (input[idx++] != 1) {
+        WOLFSSL_MSG("\tfail: pathlen too long");
+        return ASN_PATHLEN_SIZE_E;
+    }
 
-        cert->pathLength = input[idx];
-        cert->extBasicConstPlSet = 1;
-    #endif /* OPENSSL_EXTRA */
+    cert->pathLength = input[idx];
+    cert->pathLengthSet = 1;
 
     return 0;
 }
@@ -5071,7 +5378,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
     #endif
 
- if (verify && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
+   if (verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
         Signer* ca = NULL;
         #ifndef NO_SKID
             if (cert->extAuthKeyIdSet)
@@ -5084,6 +5391,21 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         WOLFSSL_MSG("About to verify certificate signature");
 
         if (ca) {
+            if (cert->isCA) {
+                if (ca->pathLengthSet) {
+                    if (ca->pathLength == 0) {
+                        WOLFSSL_MSG("CA with path length 0 signing a CA");
+                        return ASN_PATHLEN_INV_E;
+                    }
+                    if (cert->pathLengthSet &&
+                        cert->pathLength >= ca->pathLength) {
+
+                        WOLFSSL_MSG("CA signing CA with longer path length");
+                        return ASN_PATHLEN_INV_E;
+                    }
+                }
+            }
+
 #ifdef HAVE_OCSP
             /* Need the ca's public key hash for OCSP */
     #ifdef NO_SHA
@@ -5096,23 +5418,26 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             if (ret != 0)
                 return ret;
 #endif /* HAVE_OCSP */
-            /* try to confirm/verify signature */
-            if (!ConfirmSignature(cert->source + cert->certBegin,
-                        cert->sigIndex - cert->certBegin,
-                    ca->publicKey, ca->pubKeySize, ca->keyOID,
-                    cert->signature, cert->sigLength, cert->signatureOID,
-                    cert->heap)) {
-                WOLFSSL_MSG("Confirm signature failed");
-                return ASN_SIG_CONFIRM_E;
+
+            if (verify == VERIFY) {
+                /* try to confirm/verify signature */
+                if (!ConfirmSignature(cert->source + cert->certBegin,
+                            cert->sigIndex - cert->certBegin,
+                        ca->publicKey, ca->pubKeySize, ca->keyOID,
+                        cert->signature, cert->sigLength, cert->signatureOID,
+                        cert->heap)) {
+                    WOLFSSL_MSG("Confirm signature failed");
+                    return ASN_SIG_CONFIRM_E;
+                }
+                #ifndef IGNORE_NAME_CONSTRAINTS
+                /* check that this cert's name is permitted by the signer's
+                 * name constraints */
+                if (!ConfirmNameConstraints(ca, cert)) {
+                    WOLFSSL_MSG("Confirm name constraint failed");
+                    return ASN_NAME_INVALID_E;
+                }
+                #endif /* IGNORE_NAME_CONSTRAINTS */
             }
-#ifndef IGNORE_NAME_CONSTRAINTS
-            /* check that this cert's name is permitted by the signer's
-             * name constraints */
-            if (!ConfirmNameConstraints(ca, cert)) {
-                WOLFSSL_MSG("Confirm name constraint failed");
-                return ASN_NAME_INVALID_E;
-            }
-#endif /* IGNORE_NAME_CONSTRAINTS */
         }
         else {
             /* no signer */
@@ -5146,6 +5471,8 @@ Signer* MakeSigner(void* heap)
             signer->permittedNames = NULL;
             signer->excludedNames = NULL;
         #endif /* IGNORE_NAME_CONSTRAINTS */
+        signer->pathLengthSet = 0;
+        signer->pathLength = 0;
         signer->next       = NULL;
     }
     (void)heap;
@@ -5569,7 +5896,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
     n[0] = ASN_INTEGER;
     nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
 
-    if ( (nSz + rawLen) < MAX_RSA_INT_SZ) {
+    if ( (nSz + rawLen) <= MAX_RSA_INT_SZ) {
         if (leadingBit)
             n[nSz] = 0;
 #ifdef HAVE_USER_RSA
@@ -7314,6 +7641,15 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
         }
         break;
     #endif
+    #ifdef WOLFSSL_SHA224
+        case CTC_SHA224wRSA:
+        case CTC_SHA224wECDSA:
+        if ((ret = wc_Sha224Hash(buffer, sz, digest)) == 0) {
+            typeH    = SHA224h;
+            digestSz = SHA224_DIGEST_SIZE;
+        }
+        break;
+    #endif
     #ifndef NO_SHA256
         case CTC_SHA256wRSA:
         case CTC_SHA256wECDSA:
@@ -7323,12 +7659,21 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
         }
         break;
     #endif
+    #ifdef WOLFSSL_SHA384
+        case CTC_SHA384wRSA:
+        case CTC_SHA384wECDSA:
+        if ((ret = wc_Sha384Hash(buffer, sz, digest)) == 0) {
+            typeH    = SHA384h;
+            digestSz = SHA384_DIGEST_SIZE;
+        }
+        break;
+    #endif
     #ifdef WOLFSSL_SHA512
         case CTC_SHA512wRSA:
         case CTC_SHA512wECDSA:
         if ((ret = wc_Sha512Hash(buffer, sz, digest)) == 0) {
-            typeH    = SHA256h;
-            digestSz = SHA256_DIGEST_SIZE;
+            typeH    = SHA512h;
+            digestSz = SHA512_DIGEST_SIZE;
         }
         break;
     #endif
@@ -7359,7 +7704,15 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
     if (rsaKey) {
         /* signature */
         encSigSz = wc_EncodeSignature(encSig, digest, digestSz, typeH);
-        ret = wc_RsaSSL_Sign(encSig, encSigSz, sig, sigSz, rsaKey, rng);
+        ret = 0;
+        do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_RsaAsyncWait(ret, rsaKey);
+#endif
+            if (ret >= 0) {
+                ret = wc_RsaSSL_Sign(encSig, encSigSz, sig, sigSz, rsaKey, rng);
+            }
+        } while (ret == WC_PENDING_E);
     }
 #endif
 
@@ -8557,11 +8910,12 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                         word32 inSz)
 {
-    word32 oid = 0;
+    word32 oidSum = 0;
     int    version, length;
     int    privSz, pubSz;
     byte   b;
     int    ret = 0;
+    int    curve_id = ECC_CURVE_DEF;
 #ifdef WOLFSSL_SMALL_STACK
     byte* priv;
     byte* pub;
@@ -8576,7 +8930,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if (GetMyVersion(input, inOutIdx, &version) < 0)
+    if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
         return ASN_PARSE_E;
 
     b = input[*inOutIdx];
@@ -8629,11 +8983,16 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
             }
             else {
                 while(length--) {
-                    oid += input[*inOutIdx];
+                    oidSum += input[*inOutIdx];
                     *inOutIdx += 1;
                 }
-                if (CheckCurve(oid) < 0)
+                if ((ret = CheckCurve(oidSum)) < 0) {
                     ret = ECC_CURVE_OID_E;
+                }
+                else {
+                    curve_id = ret;
+                    ret = 0;
+                }
             }
         }
     }
@@ -8677,8 +9036,8 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                     if (pubSz < 2*(ECC_MAXSIZE+1)) {
                         XMEMCPY(pub, &input[*inOutIdx], pubSz);
                         *inOutIdx += length;
-                        ret = wc_ecc_import_private_key(priv, privSz, pub, pubSz,
-                                                     key);
+                        ret = wc_ecc_import_private_key_ex(priv, privSz, pub,
+                                                        pubSz, key, curve_id);
                     } else
                         ret = BUFFER_E;
                 }
@@ -9132,7 +9491,7 @@ static int DecodeResponseData(byte* source,
     if (source[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED))
     {
         idx += 2; /* Eat the value and length */
-        if (GetMyVersion(source, &idx, &version) < 0)
+        if (GetMyVersion(source, &idx, &version, size) < 0)
             return ASN_PARSE_E;
     } else
         version = 0;
@@ -9792,7 +10151,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 
     /* may have version */
     if (buff[idx] == ASN_INTEGER) {
-        if (GetMyVersion(buff, &idx, &version) < 0)
+        if (GetMyVersion(buff, &idx, &version, sz) < 0)
             return ASN_PARSE_E;
     }
 

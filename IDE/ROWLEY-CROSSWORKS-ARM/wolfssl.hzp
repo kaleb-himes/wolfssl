@@ -83,6 +83,9 @@
           <file file_name="../../wolfcrypt/src/memory.c" />
           <file file_name="../../wolfcrypt/src/misc.c">
             <configuration Name="ARM_Debug" build_exclude_from_build="Yes" />
+            <configuration
+              Name="ARM_Release"
+              build_exclude_from_build="Yes" />
           </file>
           <file file_name="../../wolfcrypt/src/pkcs7.c" />
           <file file_name="../../wolfcrypt/src/poly1305.c" />
@@ -140,6 +143,8 @@
       arm_target_loader_default_loader="Flash"
       c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS"
       c_user_include_directories=".;../;../../;$(TargetsDir);$(TargetsDir)/Kinetis;$(TargetsDir)/Kinetis/CMSIS;$(TargetsDir)/Kinetis/CMSIS/include;$(TargetsDir)/CMSIS_3/CMSIS/include"
+      debug_register_definition_file="$(TargetsDir)/Kinetis/MK64F12_Peripherals.xml"
+      linker_memory_map_file="$(TargetsDir)/Kinetis/MK64FN1M0xxx12_MemoryMap.xml"
       linker_memory_map_macros="FLASHSIZE=0x80000;SRAMSIZE=0x20000"
       linker_output_format="bin"
       project_dependencies="libwolfssl"
@@ -161,7 +166,6 @@
     </folder>
     <folder Name="System Files">
       <file file_name="Kinetis_FlashPlacement.xml" />
-      <file file_name="Kinetis_MemoryMap.xml" />
     </folder>
   </project>
   <project Name="benchmark">
@@ -169,16 +173,21 @@
       Name="Common"
       Placement="Flash"
       Target="MK64FN1M0xxx12"
+      arm_architecture="v7EM"
+      arm_core_type="Cortex-M4"
+      arm_fpu_type="FPv4-SP-D16"
       arm_linker_fiq_stack_size="0"
       arm_linker_heap_size="91136"
       arm_linker_irq_stack_size="0"
       arm_linker_stack_size="30720"
       arm_simulator_memory_simulation_filename="$(TargetsDir)/Kinetis/KinetisSimulatorMemory.dll"
-      arm_simulator_memory_simulation_parameter="MK64FN1M0xxx12;0x100000;0x0;0x0;0x40000"
+      arm_simulator_memory_simulation_parameter="MK64FN1M0xxx12;0x100000;0x0;0x0;0x40000;4"
       arm_target_loader_applicable_loaders="Flash"
       arm_target_loader_default_loader="Flash"
       c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS"
       c_user_include_directories=".;../;../../;$(TargetsDir);$(TargetsDir)/Kinetis;$(TargetsDir)/Kinetis/CMSIS;$(TargetsDir)/Kinetis/CMSIS/include;$(TargetsDir)/CMSIS_3/CMSIS/include"
+      debug_register_definition_file="$(TargetsDir)/Kinetis/MK64F12_Peripherals.xml"
+      linker_memory_map_file="$(TargetsDir)/Kinetis/MK64FN1M0xxx12_MemoryMap.xml"
       linker_memory_map_macros="FLASHSIZE=0x80000;SRAMSIZE=0x20000"
       linker_output_format="bin"
       project_dependencies="libwolfssl"
@@ -200,8 +209,11 @@
     </folder>
     <folder Name="System Files">
       <file file_name="Kinetis_FlashPlacement.xml" />
-      <file file_name="Kinetis_MemoryMap.xml" />
     </folder>
+    <configuration
+      Name="Flash"
+      arm_target_flash_loader_file_path="$(TargetsDir)/Kinetis/Release/Loader.elf"
+      arm_target_loader_parameter="4" />
   </project>
   <configuration
     Name="ARM"
@@ -278,11 +290,10 @@
     c_preprocessor_definitions="__RAM_BUILD"
     hidden="Yes" />
   <configuration
-    Name="Kineits"
+    Name="Kinetis"
     arm_target_debug_interface_type="ADIv5"
     c_preprocessor_definitions="FREESCALE;K_SERIES"
     hidden="Yes"
-    linker_memory_map_file="$(ProjectDir)/Kinetis_MemoryMap.xml"
     linker_section_placement_file="$(ProjectDir)/Kinetis_FlashPlacement.xml" />
   <configuration
     Name="V4"
@@ -400,11 +411,11 @@
   <configuration
     Name="ARM_Debug"
     batch_build_configurations="V7EM THUMB * Debug"
-    inherited_configurations="ARM;V7EM;Debug;Kineits;THUMB;Flash" />
+    inherited_configurations="ARM;V7EM;Debug;Kinetis;THUMB;Flash" />
   <configuration
     Name="ARM_Release"
     batch_build_configurations="V7EM THUMB * Release"
-    inherited_configurations="ARM;V7EM;Release;Kineits;Flash;THUMB" />
+    inherited_configurations="ARM;V7EM;Release;Kinetis;Flash;THUMB" />
   <configuration
     Name="Common"
     build_intermediate_directory="$(ProjectName)_$(Configuration)"

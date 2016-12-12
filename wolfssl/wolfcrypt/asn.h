@@ -195,7 +195,8 @@ enum Misc_ASN {
     MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
                                    /* use bigger NTRU size */
     HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
-    TRAILING_ZERO       = 1        /* Used for size of zero pad */
+    TRAILING_ZERO       = 1,       /* Used for size of zero pad */
+    MIN_VERSION_SZ      = 3        /* Min bytes needed for GetMyVersion */
 };
 
 
@@ -220,6 +221,7 @@ enum Hash_Sum  {
     MD2h    = 646,
     MD5h    = 649,
     SHAh    =  88,
+    SHA224h = 417,
     SHA256h = 414,
     SHA384h = 415,
     SHA512h = 416
@@ -227,8 +229,11 @@ enum Hash_Sum  {
 
 
 enum Block_Sum {
-    DESb  = 69,
-    DES3b = 652
+    AES128CBCb = 414,
+    AES192CBCb = 434,
+    AES256CBCb = 454,
+    DESb       = 69,
+    DES3b      = 652
 };
 
 
@@ -312,8 +317,10 @@ enum ExtKeyUsage_Sum { /* From RFC 5280 */
 
 
 enum VerifyType {
-    NO_VERIFY = 0,
-    VERIFY    = 1
+    NO_VERIFY   = 0,
+    VERIFY      = 1,
+    VERIFY_CRL  = 2,
+    VERIFY_OCSP = 3
 };
 
 #ifdef WOLFSSL_CERT_EXT
@@ -442,6 +449,8 @@ struct DecodedCert {
     byte    extNameConstraintSet;
 #endif /* IGNORE_NAME_CONSTRAINTS */
     byte    isCA;                    /* CA basic constraint true         */
+    byte    pathLengthSet;           /* CA basic const path length set   */
+    byte    pathLength;              /* CA basic constraint path length  */
     byte    weOwnAltNames;           /* altNames haven't been given to copy */
     byte    extKeyUsageSet;
     word16  extKeyUsage;             /* Key usage bitfield               */
@@ -450,8 +459,6 @@ struct DecodedCert {
 #ifdef OPENSSL_EXTRA
     byte    extBasicConstSet;
     byte    extBasicConstCrit;
-    byte    extBasicConstPlSet;
-    word32  pathLength;              /* CA basic constraint path length, opt */
     byte    extSubjAltNameSet;
     byte    extSubjAltNameCrit;
     byte    extAuthKeyIdCrit;
@@ -562,6 +569,8 @@ struct Signer {
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
     word16  keyUsage;
+    byte    pathLength;
+    byte    pathLengthSet;
     byte*   publicKey;
     int     nameLen;
     char*   name;                    /* common name */
@@ -601,20 +610,20 @@ struct TrustedPeerCert {
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
 
-/* not for public consumption but may use for testing sometimes */
-#ifdef WOLFSSL_TEST_CERT
-    #define WOLFSSL_TEST_API WOLFSSL_API
+/* for testing or custom openssl wrappers */
+#if defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA)
+    #define WOLFSSL_ASN_API WOLFSSL_API
 #else
-    #define WOLFSSL_TEST_API WOLFSSL_LOCAL
+    #define WOLFSSL_ASN_API WOLFSSL_LOCAL
 #endif
 
-WOLFSSL_TEST_API void FreeAltNames(DNS_entry*, void*);
+WOLFSSL_ASN_API void FreeAltNames(DNS_entry*, void*);
 #ifndef IGNORE_NAME_CONSTRAINTS
-    WOLFSSL_TEST_API void FreeNameSubtrees(Base_entry*, void*);
+    WOLFSSL_ASN_API void FreeNameSubtrees(Base_entry*, void*);
 #endif /* IGNORE_NAME_CONSTRAINTS */
-WOLFSSL_TEST_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
-WOLFSSL_TEST_API void FreeDecodedCert(DecodedCert*);
-WOLFSSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
+WOLFSSL_ASN_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
+WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert*);
+WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
@@ -627,8 +636,9 @@ WOLFSSL_LOCAL void    FreeTrustedPeer(TrustedPeerCert*, void*);
 WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert**, int, void*);
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
-WOLFSSL_LOCAL int ToTraditional(byte* buffer, word32 length);
+WOLFSSL_ASN_API int ToTraditional(byte* buffer, word32 length);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
+WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* psw,int pswSz);
 
 typedef struct tm wolfssl_tm;
 #if defined(WOLFSSL_MYSQL_COMPATIBLE)
@@ -640,8 +650,10 @@ WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 
 /* ASN.1 helper functions */
 #ifdef WOLFSSL_CERT_GEN
-WOLFSSL_TEST_API int SetName(byte* output, word32 outputSz, CertName* name);
+WOLFSSL_ASN_API int SetName(byte* output, word32 outputSz, CertName* name);
 #endif
+WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number,
+                              word32 maxIdx);
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx);
 WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
@@ -649,7 +661,7 @@ WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
 WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
                         word32 maxIdx);
 WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
-                              int* version);
+                              int* version, word32 maxIdx);
 WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                         word32 maxIdx);
 #ifdef HAVE_OID_ENCODING
@@ -677,6 +689,7 @@ WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
     byte* serial, int* serialSz, word32 maxIdx);
 WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
                              int maxIdx);
+WOLFSSL_LOCAL int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der);
 
 #ifdef HAVE_ECC
     /* ASN sig helpers */

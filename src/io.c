@@ -80,6 +80,8 @@
     #elif defined(WOLFSSL_VXWORKS)
         #include <sockLib.h>
         #include <errno.h>
+    #elif defined(WOLFSSL_ATMEL)
+        #include "socket/include/socket.h"
     #else
         #include <sys/types.h>
         #include <errno.h>
@@ -398,7 +400,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int recvd;
     int err;
-    int sd = dtlsCtx->fd;
+    int sd = dtlsCtx->rfd;
     int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
     struct sockaddr_storage peer;
     XSOCKLENT peerSz = sizeof(peer);
@@ -477,7 +479,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
-    int sd = dtlsCtx->fd;
+    int sd = dtlsCtx->wfd;
     int sent;
     int len = sz;
     int err;
@@ -1015,7 +1017,7 @@ static int process_http_response(int sfd, byte** respBuf,
         XMEMCPY(recvBuf, start, len);
 
     /* receive the OCSP response data */
-    do {
+    while (len < recvBufSz) {
         result = (int)recv(sfd, (char*)recvBuf+len, recvBufSz-len, 0);
         if (result > 0)
             len += result;
@@ -1023,7 +1025,7 @@ static int process_http_response(int sfd, byte** respBuf,
             WOLFSSL_MSG("process_http_response recv ocsp from peer failed");
             return -1;
         }
-    } while (len != recvBufSz);
+    }
 
     *respBuf = recvBuf;
     return recvBufSz;

@@ -294,6 +294,9 @@ typedef struct {
     int      size;
 #endif
     fp_digit dp[FP_SIZE];
+#ifdef WOLFSSL_ASYNC_CRYPT
+    byte *dpraw; /* Used for hardware crypto */
+#endif
 } fp_int;
 
 /* externally define this symbol to ignore the default settings, useful for changing the build from the make process */
@@ -384,6 +387,8 @@ typedef struct {
 
 /* zero/even/odd ? */
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
+#define fp_isone(a) \
+    ((((a)->used == 1) && ((a)->dp[0] == 1)) ? FP_YES : FP_NO)
 #define fp_iseven(a) (((a)->used > 0 && (((a)->dp[0] & 1) == 0)) ? FP_YES : FP_NO)
 #define fp_isodd(a)  (((a)->used > 0  && (((a)->dp[0] & 1) == 1)) ? FP_YES : FP_NO)
 #define fp_isneg(a)  (((a)->sign != 0) ? FP_YES : FP_NO)
@@ -547,6 +552,7 @@ int fp_leading_bit(fp_int *a);
 int fp_unsigned_bin_size(fp_int *a);
 void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c);
 void fp_to_unsigned_bin(fp_int *a, unsigned char *b);
+int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b);
 
 /*int fp_signed_bin_size(fp_int *a);*/
 /*void fp_read_signed_bin(fp_int *a, const unsigned char *b, int c);*/
@@ -621,7 +627,9 @@ typedef fp_int mp_int;
 
 /* Prototypes */
 #define mp_zero(a)  fp_zero(a)
+#define mp_isone(a)  fp_isone(a)
 #define mp_iseven(a)  fp_iseven(a)
+#define mp_isneg(a)   fp_isneg(a)
 int  mp_init (mp_int * a);
 void mp_clear (mp_int * a);
 #define mp_forcezero(a) fp_clear(a)
@@ -652,7 +660,6 @@ int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
 int  mp_copy(fp_int* a, fp_int* b);
 int  mp_isodd(mp_int* a);
 int  mp_iszero(mp_int* a);
-int  mp_isneg(mp_int* a);
 int  mp_count_bits(mp_int *a);
 int  mp_leading_bit(mp_int *a);
 int  mp_set_int(mp_int *a, mp_digit b);

@@ -100,6 +100,13 @@ int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
 {
     int res = MP_OKAY;
 
+    if (a) XMEMSET(a, 0, sizeof(mp_int));
+    if (b) XMEMSET(b, 0, sizeof(mp_int));
+    if (c) XMEMSET(c, 0, sizeof(mp_int));
+    if (d) XMEMSET(d, 0, sizeof(mp_int));
+    if (e) XMEMSET(e, 0, sizeof(mp_int));
+    if (f) XMEMSET(f, 0, sizeof(mp_int));
+
     if (a && ((res = mp_init(a)) != MP_OKAY))
         return res;
 
@@ -454,7 +461,7 @@ void mp_zero (mp_int * a)
 {
   int       n;
   mp_digit *tmp;
-  
+
   if (a == NULL)
       return;
 
@@ -1067,6 +1074,12 @@ int mp_invmod_slow (mp_int * a, mp_int * b, mp_int * c)
 
   /* init rest of tmps temps */
   if ((res = mp_init_multi(&C, &D, 0, 0, 0, 0)) != MP_OKAY) {
+     mp_clear(&x);
+     mp_clear(&y);
+     mp_clear(&u);
+     mp_clear(&v);
+     mp_clear(&A);
+     mp_clear(&B);
      return res;
   }
 
@@ -4418,7 +4431,7 @@ int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
 
     XMEMSET(buf, 0, len);
     XFREE(buf, heap, DYNAMIC_TYPE_RSA);
-    
+
     return MP_OKAY;
 }
 

@@ -49,32 +49,29 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef FREESCALE_MMCAU
-    #include "cau_api.h"
+#ifdef FREESCALE_MMCAU_SHA
+    #include "fsl_mmcau.h"
     #define XTRANSFORM(S,B)  Transform((S), (B))
 #else
     #define XTRANSFORM(S,B)  Transform((S))
 #endif
 
 
-#ifdef STM32F2_HASH
+#if defined(STM32F2_HASH) || defined(STM32F4_HASH)
     /*
-     * STM32F2 hardware MD5 support through the STM32F2 standard peripheral
-     * library. Documentation located in STM32F2xx Standard Peripheral Library
-     * document (See note in README).
+     * STM32F2/F4 hardware MD5 support through the standard peripheral
+     * library. (See note in README).
      */
-    #include "stm32f2xx.h"
-    #include "stm32f2xx_hash.h"
 
     void wc_InitMd5(Md5* md5)
     {
-        /* STM32F2 struct notes:
-         * md5->buffer  = first 4 bytes used to hold partial block if needed 
+        /* STM32 struct notes:
+         * md5->buffer  = first 4 bytes used to hold partial block if needed
          * md5->buffLen = num bytes currently stored in md5->buffer
          * md5->loLen   = num bytes that have been written to STM32 FIFO
          */
         XMEMSET(md5->buffer, 0, MD5_REG_SIZE);
-			
+
         md5->buffLen = 0;
         md5->loLen = 0;
 
@@ -83,7 +80,7 @@
 
         /* configure algo used, algo mode, datatype */
         HASH->CR &= ~ (HASH_CR_ALGO | HASH_CR_DATATYPE | HASH_CR_MODE);
-        HASH->CR |= (HASH_AlgoSelection_MD5 | HASH_AlgoMode_HASH 
+        HASH->CR |= (HASH_AlgoSelection_MD5 | HASH_AlgoMode_HASH
                  | HASH_DataType_8b);
 
         /* reset HASH processor */
@@ -157,7 +154,7 @@
 
         /* wait until Busy flag == RESET */
         while (HASH_GetFlagStatus(HASH_FLAG_BUSY) != RESET) {}
-        
+
         /* read message digest */
         md5->digest[0] = HASH->HR[0];
         md5->digest[1] = HASH->HR[1];
@@ -171,7 +168,7 @@
         wc_InitMd5(md5);  /* reset state */
     }
 
-#else /* CTaoCrypt software implementation */
+#else /* Begin wolfCrypt software implementation */
 
 #ifndef WOLFSSL_HAVE_MIN
 #define WOLFSSL_HAVE_MIN
@@ -195,19 +192,19 @@ void wc_InitMd5(Md5* md5)
     md5->hiLen   = 0;
 }
 
-#ifdef FREESCALE_MMCAU
+#ifdef FREESCALE_MMCAU_SHA
 static int Transform(Md5* md5, byte* data)
 {
     int ret = wolfSSL_CryptHwMutexLock();
     if(ret == 0) {
-        cau_md5_hash_n(data, 1, (unsigned char*)md5->digest);
+        MMCAU_MD5_HashN(data, 1, (uint32_t*)(md5->digest));
         wolfSSL_CryptHwMutexUnLock();
     }
     return ret;
 }
-#endif /* FREESCALE_MMCAU */
+#endif /* FREESCALE_MMCAU_SHA */
 
-#ifndef FREESCALE_MMCAU
+#ifndef FREESCALE_MMCAU_SHA
 
 static void Transform(Md5* md5)
 {
@@ -292,7 +289,7 @@ static void Transform(Md5* md5)
     MD5STEP(F4, d, a, b, c, md5->buffer[11] + 0xbd3af235, 10);
     MD5STEP(F4, c, d, a, b, md5->buffer[2]  + 0x2ad7d2bb, 15);
     MD5STEP(F4, b, c, d, a, md5->buffer[9]  + 0xeb86d391, 21);
-    
+
     /* Add the working vars back into digest state[]  */
     md5->digest[0] += a;
     md5->digest[1] += b;
@@ -300,7 +297,7 @@ static void Transform(Md5* md5)
     md5->digest[3] += d;
 }
 
-#endif /* FREESCALE_MMCAU */
+#endif /* End Software implementation */
 
 
 static INLINE void AddLength(Md5* md5, word32 len)
@@ -325,7 +322,7 @@ void wc_Md5Update(Md5* md5, const byte* data, word32 len)
         len          -= add;
 
         if (md5->buffLen == MD5_BLOCK_SIZE) {
-            #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+            #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
                 ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
             #endif
             XTRANSFORM(md5, local);
@@ -349,21 +346,21 @@ void wc_Md5Final(Md5* md5, byte* hash)
         XMEMSET(&local[md5->buffLen], 0, MD5_BLOCK_SIZE - md5->buffLen);
         md5->buffLen += MD5_BLOCK_SIZE - md5->buffLen;
 
-        #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+        #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
             ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
         #endif
         XTRANSFORM(md5, local);
         md5->buffLen = 0;
     }
     XMEMSET(&local[md5->buffLen], 0, MD5_PAD_SIZE - md5->buffLen);
-   
+
     /* put lengths in bits */
-    md5->hiLen = (md5->loLen >> (8*sizeof(md5->loLen) - 3)) + 
+    md5->hiLen = (md5->loLen >> (8*sizeof(md5->loLen) - 3)) +
                  (md5->hiLen << 3);
     md5->loLen = md5->loLen << 3;
 
     /* store lengths */
-    #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+    #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
         ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
     #endif
     /* ! length ordering dependent on digest endian type ! */
@@ -379,7 +376,7 @@ void wc_Md5Final(Md5* md5, byte* hash)
     wc_InitMd5(md5);  /* reset state */
 }
 
-#endif /* STM32F2_HASH */
+#endif /* End wolfCrypt software implementation */
 
 
 int wc_Md5Hash(const byte* data, word32 len, byte* hash)

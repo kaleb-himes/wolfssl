@@ -356,22 +356,29 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     mp_int k, kInv, r, s, H;
     int    ret, sz;
     byte   buffer[DSA_HALF_SIZE];
+    byte*  tmp = out;  /* initial output pointer */
 
     sz = min((int)sizeof(buffer), mp_unsigned_bin_size(&key->q));
-
-    /* generate k */
-    ret = wc_RNG_GenerateBlock(rng, buffer, sz);
-    if (ret != 0)
-        return ret;
-
-    buffer[0] |= 0x0C;
-
+    
     if (mp_init_multi(&k, &kInv, &r, &s, &H, 0) != MP_OKAY)
         return MP_INIT_E;
 
-    if (mp_read_unsigned_bin(&k, buffer, sz) != MP_OKAY)
-        ret = MP_READ_E;
+    do {
+        /* generate k */
+        ret = wc_RNG_GenerateBlock(rng, buffer, sz);
+        if (ret != 0)
+            return ret;
 
+        buffer[0] |= 0x0C;
+
+        if (mp_read_unsigned_bin(&k, buffer, sz) != MP_OKAY)
+            ret = MP_READ_E;
+            
+        /* k is a random numnber and it should be less than q
+         * if k greater than repeat
+         */
+    } while (mp_cmp(&k, &key->q) != MP_LT);
+    
     if (ret == 0 && mp_cmp_d(&k, 1) != MP_GT)
         ret = MP_CMP_E;
 
@@ -400,24 +407,27 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     if (ret == 0 && mp_mulmod(&s, &kInv, &key->q, &s) != MP_OKAY)
         ret = MP_MULMOD_E;
 
+    /* detect zero r or s */
+    if (ret == 0 && (mp_iszero(&r) == MP_YES || mp_iszero(&s) == MP_YES))
+        ret = MP_ZERO_E;
+
     /* write out */
     if (ret == 0)  {
         int rSz = mp_unsigned_bin_size(&r);
         int sSz = mp_unsigned_bin_size(&s);
 
-        if (rSz == DSA_HALF_SIZE - 1) {
-            out[0] = 0;
-            out++;
+        while (rSz++ < DSA_HALF_SIZE) {
+            *out++ = 0x00;  /* pad front with zeros */
         }
 
         if (mp_to_unsigned_bin(&r, out) != MP_OKAY)
             ret = MP_TO_E;
         else {
-            if (sSz == DSA_HALF_SIZE - 1) {
-                out[rSz] = 0;
-                out++;
-            }    
-            ret = mp_to_unsigned_bin(&s, out + rSz);
+            out = tmp + DSA_HALF_SIZE;  /* advance to s in output */
+            while (sSz++ < DSA_HALF_SIZE) {
+                *out++ = 0x00;  /* pad front with zeros */
+            }
+            ret = mp_to_unsigned_bin(&s, out);
         }
     }
 
