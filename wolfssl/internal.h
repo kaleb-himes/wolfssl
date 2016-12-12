@@ -1039,7 +1039,11 @@ enum Misc {
     MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
 
+#ifdef MICROCHIP_PIC24
+    MAX_WOLFSSL_FILE_SIZE = 1024 * 16,  /* 2mb file size alloc limit */
+#else
     MAX_WOLFSSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
+#endif
 
 #if defined(FORTRESS) || defined (HAVE_STUNNEL)
     MAX_EX_DATA        =   3,  /* allow for three items of ex_data */

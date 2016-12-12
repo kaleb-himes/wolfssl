@@ -374,7 +374,7 @@ static INLINE void c64toa(word64 u64, byte* c)
 /* convert a 24 bit integer into a 32 bit one */
 static INLINE void c24to32(const word24 u24, word32* u32)
 {
-    *u32 = (u24[0] << 16) | (u24[1] << 8) | u24[2];
+    *u32 = ((word32)u24[0] << 16) | ((word32)u24[1] << 8) | (word32)u24[2];
 }
 
 

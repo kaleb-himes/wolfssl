@@ -718,7 +718,7 @@ enum {
     X509_V_ERR_CERT_REJECTED                  = 23,
     X509_V_OK = 0,
 
-    XN_FLAG_SPC_EQ  = (1 << 23),
+    XN_FLAG_SPC_EQ  = (1UL << 23),
     XN_FLAG_ONELINE = 0,
 
     CRYPTO_LOCK = 1,
@@ -906,7 +906,11 @@ WOLFSSL_API int wolfSSL_Cleanup(void);
 /* which library version do we have */
 WOLFSSL_API const char* wolfSSL_lib_version(void);
 /* which library version do we have in hex */
+#ifdef MICROCHIP_PIC24
+WOLFSSL_API   word32 wolfSSL_lib_version_hex(void);
+#else
 WOLFSSL_API unsigned int wolfSSL_lib_version_hex(void);
+#endif
 
 /* turn logging on, only if compiled in */
 WOLFSSL_API int  wolfSSL_Debugging_ON(void);
@@ -994,8 +998,13 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX*, const unsigned char* 
                                              int format);
 #endif
 
+#ifdef MICROCHIP_PIC24
+WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, word16);
+WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, word16);
+#else
 WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, unsigned short);
 WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, unsigned short);
+#endif
 WOLFSSL_API int wolfSSL_GetDhKey_Sz(WOLFSSL*);
 #endif /* NO_DH */
 
@@ -1242,8 +1251,13 @@ WOLFSSL_API int                  wolfSSL_GetAeadMacSize(WOLFSSL*);
 WOLFSSL_API int                  wolfSSL_GetHmacSize(WOLFSSL*);
 WOLFSSL_API int                  wolfSSL_GetHmacType(WOLFSSL*);
 WOLFSSL_API int                  wolfSSL_GetCipherType(WOLFSSL*);
+#ifdef MICROCHIP_PIC24
+WOLFSSL_API int                  wolfSSL_SetTlsHmacInner(WOLFSSL*, byte*, word32,
+                                                                       int, int);
+#else
 WOLFSSL_API int                  wolfSSL_SetTlsHmacInner(WOLFSSL*, unsigned char*,
                                                        unsigned int, int, int);
+#endif
 
 /* Atomic User Needs */
 enum {
@@ -1710,17 +1724,30 @@ WOLFSSL_API int wolfSSL_get_session_stats(unsigned int* active,
                                           unsigned int* peak,
                                           unsigned int* maxSessions);
 /* External facing KDF */
+#ifdef MICROCHIP_PIC24
+WOLFSSL_API
+int wolfSSL_MakeTlsMasterSecret(byte* ms, word32 msLen,
+                               const byte* pms, word32 pmsLen,
+                               const byte* cr, const byte* sr,
+                               int tls1_2, int hash_type);
+WOLFSSL_API
+int wolfSSL_DeriveTlsKeys(byte* key_data, word32 keyLen,
+                         const byte* ms, word32 msLen,
+                         const byte* sr, const byte* cr,
+                         int tls1_2, int hash_type);
+#else
 WOLFSSL_API
 int wolfSSL_MakeTlsMasterSecret(unsigned char* ms, unsigned int msLen,
                                const unsigned char* pms, unsigned int pmsLen,
                                const unsigned char* cr, const unsigned char* sr,
                                int tls1_2, int hash_type);
-
 WOLFSSL_API
 int wolfSSL_DeriveTlsKeys(unsigned char* key_data, unsigned int keyLen,
                                const unsigned char* ms, unsigned int msLen,
                                const unsigned char* sr, const unsigned char* cr,
                                int tls1_2, int hash_type);
+#endif
+
 
 #ifdef WOLFSSL_CALLBACKS
 

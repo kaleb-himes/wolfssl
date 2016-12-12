@@ -1025,6 +1025,31 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 
 #elif defined(WOLFSSL_TIRTOS)
     extern double current_time();
+#elif defined MICROCHIP_PIC24
+    #ifdef EXP_16_32_EXAMPLE_PIC24FJ1024GB610_PIM
+        #include "../../wolfcrypt-test.X/mcc_generated_files/tmr1.h"
+    #else
+        #error "Please locate the correct timer header and place here"
+    #endif
+    double temp = 0.0;
+/* Still experiencing roll-overs need to resolve. shifting focus to TLS
+ * support for the time being */
+//    void TMR1_CallBack(void) {
+//        double temp = TMR1_Counter16BitGet();
+//        (void) temp;
+//    }
+
+    static inline double current_time(int reset) {
+
+        uint16_t ns;
+        if (reset) {
+            TMR1_SoftwareCounterClear();
+        }
+
+        ns = TMR1_Counter16BitGet();
+
+        return ns / 1000.0;
+    }
 #else
 
 #if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_TCP_NET)

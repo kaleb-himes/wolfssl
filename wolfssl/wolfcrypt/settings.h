@@ -211,6 +211,31 @@
     #define BENCH_EMBEDDED
 #endif
 
+#ifdef MICROCHIP_PIC24
+    #define SIZEOF_LONG_LONG 4
+    #define SINGLE_THREADED
+    #define WOLFSSL_USER_IO
+    #define NO_WRITEV
+    #define NO_DEV_RANDOM
+    #define NO_FILESYSTEM
+    #define WOLFSSL_SMALL_STACK
+    #define BENCH_EMBEDDED
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define NO_OLD_TLS
+    #define NO_64BIT
+    #define USE_CERT_BUFFERS_1024
+    #define WC_16BIT_CPU
+    #define HAVE_ECC
+    #define ECC_USER_CURVES
+
+    #define WOLFSSL_TYPES
+    typedef unsigned long word32;
+    typedef unsigned char byte;
+    typedef unsigned int word16;
+    /* end types defines */
+#endif
+
 #ifdef MICROCHIP_PIC32
     /* #define WOLFSSL_MICROCHIP_PIC32MZ */
     #define SIZEOF_LONG_LONG 8

@@ -209,7 +209,9 @@ int  rsa_test(void);
 int  dh_test(void);
 int  dsa_test(void);
 int  srp_test(void);
+#ifndef NO_RNG
 int  random_test(void);
+#endif
 int  pwdbased_test(void);
 int  ripemd_test(void);
 int  openssl_test(void);   /* test mini api */
@@ -529,11 +531,13 @@ int wolfcrypt_test(void* args)
         printf( "IDEA     test passed!\n");
 #endif
 
+#ifndef NO_RNG
     if ( (ret = random_test()) != 0)
         return err_sys("RANDOM   test failed!\n", ret);
     else
         printf( "RANDOM   test passed!\n");
-
+#endif /* NO_RNG */
+    
 #ifdef WOLFSSL_STATIC_MEMORY
     if ( (ret = memory_test()) != 0)
         return err_sys("MEMORY   test failed!\n", ret);
@@ -1172,6 +1176,7 @@ int sha256_test(void)
         if (ret != 0)
             return -4006;
         ret = wc_Sha256Final(&sha, hash);
+        printf("KALEB: ret = %d\n", ret);
         if (ret != 0)
             return -4007;
 
@@ -3738,7 +3743,7 @@ int idea_test(void)
 }
 #endif /* HAVE_IDEA */
 
-
+#ifndef NO_RNG
 static int random_rng_test(void)
 {
     WC_RNG rng;
@@ -3870,7 +3875,7 @@ int random_test(void)
 }
 
 #endif /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
-
+#endif /* NO_RNG */
 
 #ifdef WOLFSSL_STATIC_MEMORY
 int memory_test(void)
@@ -5724,6 +5729,7 @@ int dh_test(void)
     ret = wc_DhSetKey(&key2, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
     if (ret != 0)
         return -51;
+
 #else
     ret = wc_DhKeyDecode(tmp, &idx, &key, bytes);
     if (ret != 0)

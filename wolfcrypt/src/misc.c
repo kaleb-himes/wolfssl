@@ -167,9 +167,19 @@ STATIC INLINE void XorWords(wolfssl_word* r, const wolfssl_word* a, word32 n)
 
 STATIC INLINE void xorbuf(void* buf, const void* mask, word32 count)
 {
-    if (((wolfssl_word)buf | (wolfssl_word)mask | count) % WOLFSSL_WORD_SIZE == 0)
-        XorWords( (wolfssl_word*)buf,
-                  (const wolfssl_word*)mask, count / WOLFSSL_WORD_SIZE);
+    wolfssl_word bufword, maskword;
+#ifdef WC_16BIT_CPU
+    bufword = (word16)buf;
+    maskword = (word16)mask;
+#else
+    bufword = (wolfssl_word)buf;
+    maskword = (wolfssl_word)mask;
+#endif
+
+    if (((bufword | maskword | count) % WOLFSSL_WORD_SIZE) == 0) {
+        XorWords((wolfssl_word*)buf, (wolfssl_word*)mask,
+                                                count / WOLFSSL_WORD_SIZE);
+    }
     else {
         word32 i;
         byte*       b = (byte*)buf;

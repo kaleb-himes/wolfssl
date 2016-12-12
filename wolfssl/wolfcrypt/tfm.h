@@ -28,7 +28,7 @@
 
 
 /**
- *  Edited by Moisés Guimarães (moises.guimaraes@phoebus.com.br)
+ *  Edited by Moisï¿½s Guimarï¿½es (moises.guimaraes@phoebus.com.br)
  *  to fit CyaSSL's needs.
  */
 
@@ -225,12 +225,17 @@
       #define SIZEOF_FP_DIGIT 4
       typedef ulong64            fp_word;
       #define FP_32BIT
+   #elif defined(WC_16BIT_CPU)
+      /* 16 bit micros use unsigned long int for 32 bit types */
+      typedef unsigned int       fp_digit;
+      #define SIZEOF_FP_DIGIT 2
+      typedef unsigned long      fp_word;
    #else
       /* some procs like coldfire prefer not to place multiply into 64bit type
          even though it exists */
-      typedef unsigned short     fp_digit;
-      #define SIZEOF_FP_DIGIT 2
-      typedef unsigned int       fp_word;
+        typedef unsigned short     fp_digit;
+        #define SIZEOF_FP_DIGIT 2
+        typedef unsigned int       fp_word;
    #endif
 #endif
 
