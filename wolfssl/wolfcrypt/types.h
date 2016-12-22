@@ -44,6 +44,9 @@
 	    #ifndef byte
 	        typedef unsigned char  byte;
 	    #endif
+	    #ifndef NATIVE_32T
+	        #define NATIVE_32T unsigned int
+	    #endif
 	    typedef unsigned short word16;
 	    typedef unsigned int   word32;
 	#endif
@@ -92,6 +95,8 @@
          defined(__aarch64__)
 	    typedef word64 wolfssl_word;
         #define WC_64BIT_CPU
+    #elif defined(WC_16BIT_CPU)
+        typedef word16 wolfssl_word;
 	#else
 	    typedef word32 wolfssl_word;
 	    #ifdef WORD64_AVAILABLE

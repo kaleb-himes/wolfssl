@@ -516,7 +516,9 @@ void bench_rng(void)
 {
     int    ret, i;
     double start, total, persec;
-    int pos, len, remain;
+    NATIVE_32T len;
+    int pos, remain;
+
 #ifndef HAVE_LOCAL_RNG
     WC_RNG rng;
 #endif

@@ -205,21 +205,18 @@
     #define NO_WRITEV
     #define NO_DEV_RANDOM
     #define NO_FILESYSTEM
-    #define WOLFSSL_SMALL_STACK
     #define BENCH_EMBEDDED
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
-    #define NO_OLD_TLS
     #define NO_64BIT
-    #define USE_CERT_BUFFERS_1024
     #define WC_16BIT_CPU
-    #define HAVE_ECC
-    #define ECC_USER_CURVES
 
+    /* type definitions for 16-bit micro */
     #define WOLFSSL_TYPES
     typedef unsigned long word32;
     typedef unsigned char byte;
     typedef unsigned int word16;
+    #define NATIVE_32T unsigned long
     /* end types defines */
 #endif
 

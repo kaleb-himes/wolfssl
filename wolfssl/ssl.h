@@ -35,6 +35,10 @@
     #include <wolfssl/wolfcrypt/wolfevent.h>
 #endif
 
+#ifndef WOLFSSL_TYPES
+    #define NATIVE_32T unsigned int
+#endif
+
 #ifndef NO_FILESYSTEM
     #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         #if MQX_USE_IO_OLD
@@ -200,6 +204,7 @@ enum AlertDescription {
     certificate_expired             =  45,
     certificate_unknown             =  46,
     illegal_parameter               =  47,
+    decode_error                    =  50,
     decrypt_error                   =  51,
     #ifdef WOLFSSL_MYSQL_COMPATIBLE
     /* catch name conflict for enum protocol with MYSQL build */
@@ -930,11 +935,7 @@ WOLFSSL_API int wolfSSL_Cleanup(void);
 /* which library version do we have */
 WOLFSSL_API const char* wolfSSL_lib_version(void);
 /* which library version do we have in hex */
-#ifdef MICROCHIP_PIC24
-WOLFSSL_API   word32 wolfSSL_lib_version_hex(void);
-#else
-WOLFSSL_API unsigned int wolfSSL_lib_version_hex(void);
-#endif
+WOLFSSL_API NATIVE_32T wolfSSL_lib_version_hex(void);
 
 /* turn logging on, only if compiled in */
 WOLFSSL_API int  wolfSSL_Debugging_ON(void);
@@ -1034,13 +1035,8 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX*, const unsigned char* 
                                              int format);
 #endif
 
-#ifdef MICROCHIP_PIC24
-WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, word16);
-WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, word16);
-#else
 WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, unsigned short);
 WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, unsigned short);
-#endif
 WOLFSSL_API int wolfSSL_GetDhKey_Sz(WOLFSSL*);
 #endif /* NO_DH */
 
@@ -1291,13 +1287,8 @@ WOLFSSL_API int                  wolfSSL_GetAeadMacSize(WOLFSSL*);
 WOLFSSL_API int                  wolfSSL_GetHmacSize(WOLFSSL*);
 WOLFSSL_API int                  wolfSSL_GetHmacType(WOLFSSL*);
 WOLFSSL_API int                  wolfSSL_GetCipherType(WOLFSSL*);
-#ifdef MICROCHIP_PIC24
-WOLFSSL_API int                  wolfSSL_SetTlsHmacInner(WOLFSSL*, byte*, word32,
-                                                                       int, int);
-#else
 WOLFSSL_API int                  wolfSSL_SetTlsHmacInner(WOLFSSL*, unsigned char*,
-                                                       unsigned int, int, int);
-#endif
+                                                       NATIVE_32T, int, int);
 
 /* Atomic User Needs */
 enum {
@@ -1783,23 +1774,12 @@ WOLFSSL_API int wolfSSL_get_session_stats(unsigned int* active,
                                           unsigned int* peak,
                                           unsigned int* maxSessions);
 /* External facing KDF */
-#ifdef MICROCHIP_PIC24
 WOLFSSL_API
-int wolfSSL_MakeTlsMasterSecret(byte* ms, word32 msLen,
-                               const byte* pms, word32 pmsLen,
-                               const byte* cr, const byte* sr,
-                               int tls1_2, int hash_type);
-WOLFSSL_API
-int wolfSSL_DeriveTlsKeys(byte* key_data, word32 keyLen,
-                         const byte* ms, word32 msLen,
-                         const byte* sr, const byte* cr,
-                         int tls1_2, int hash_type);
-#else
-WOLFSSL_API
-int wolfSSL_MakeTlsMasterSecret(unsigned char* ms, unsigned int msLen,
-                               const unsigned char* pms, unsigned int pmsLen,
+int wolfSSL_MakeTlsMasterSecret(unsigned char* ms, NATIVE_32T msLen,
+                               const unsigned char* pms, NATIVE_32T pmsLen,
                                const unsigned char* cr, const unsigned char* sr,
                                int tls1_2, int hash_type);
+
 WOLFSSL_API
 int wolfSSL_MakeTlsExtendedMasterSecret(unsigned char* ms, unsigned int msLen,
                               const unsigned char* pms, unsigned int pmsLen,
@@ -1807,12 +1787,10 @@ int wolfSSL_MakeTlsExtendedMasterSecret(unsigned char* ms, unsigned int msLen,
                               int tls1_2, int hash_type);
 
 WOLFSSL_API
-int wolfSSL_DeriveTlsKeys(unsigned char* key_data, unsigned int keyLen,
-                               const unsigned char* ms, unsigned int msLen,
+int wolfSSL_DeriveTlsKeys(unsigned char* key_data, NATIVE_32T keyLen,
+                               const unsigned char* ms, NATIVE_32T msLen,
                                const unsigned char* sr, const unsigned char* cr,
                                int tls1_2, int hash_type);
-#endif
-
 
 #ifdef WOLFSSL_CALLBACKS
 
