@@ -6177,7 +6177,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 {
     int ret = 0;
 
-    if (x509 == NULL || dCert == NULL)
+    if (x509 == NULL || dCert == NULL ||
+        dCert->subjectCNLen < 0)
         return BAD_FUNC_ARG;
 
     x509->version = dCert->version + 1;
@@ -6234,14 +6235,14 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         else
             x509->deviceTypeSz = 0;
         minSz = min(dCert->hwTypeSz, EXTERNAL_SERIAL_SIZE);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->hwTypeSz = minSz;
             XMEMCPY(x509->hwType, dCert->hwType, minSz);
         }
         else
             x509->hwTypeSz = 0;
         minSz = min(dCert->hwSerialNumSz, EXTERNAL_SERIAL_SIZE);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->hwSerialNumSz = minSz;
             XMEMCPY(x509->hwSerialNum, dCert->hwSerialNum, minSz);
         }
@@ -6251,14 +6252,14 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #endif /* WOLFSSL_SEP */
     {
         int minSz = min(dCert->beforeDateLen, MAX_DATE_SZ);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->notBeforeSz = minSz;
             XMEMCPY(x509->notBefore, dCert->beforeDate, minSz);
         }
         else
             x509->notBeforeSz = 0;
         minSz = min(dCert->afterDateLen, MAX_DATE_SZ);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->notAfterSz = minSz;
             XMEMCPY(x509->notAfter, dCert->afterDate, minSz);
         }
@@ -7649,13 +7650,16 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                           byte type, word32 size, word32 totalSz)
 {
     int ret = 0;
-    (void)totalSz;
+    word32 expectedIdx;
 
     WOLFSSL_ENTER("DoHandShakeMsgType");
 
     /* make sure can read the message */
     if (*inOutIdx + size > totalSz)
         return INCOMPLETE_DATA;
+
+    expectedIdx = *inOutIdx + size +
+                  (ssl->keys.encryptionOn ? ssl->keys.padSz : 0);
 
     /* sanity check msg received */
     if ( (ret = SanityCheckMsgReceived(ssl, type)) != 0) {
@@ -7809,6 +7813,13 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         WOLFSSL_MSG("Unknown handshake message type");
         ret = UNKNOWN_HANDSHAKE_TYPE;
         break;
+    }
+
+    if (ret == 0 && expectedIdx != *inOutIdx) {
+        WOLFSSL_MSG("Extra data in handshake message");
+        if (!ssl->options.dtls)
+            SendAlert(ssl, alert_fatal, decode_error);
+        ret = DECODE_E;
     }
 
     /* if async, offset index so this msg will be processed again */
@@ -8172,7 +8183,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         /* This branch is in order next, and a complete message. */
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
         if (ret == 0) {
-            if (type != client_hello)
+            if (type != client_hello || !IsDtlsNotSctpMode(ssl))
                 ssl->keys.dtls_expected_peer_handshake_number++;
             if (ssl->dtls_rx_msg_list != NULL) {
                 ret = DtlsMsgDrain(ssl);
@@ -9712,10 +9723,13 @@ int ProcessReply(WOLFSSL* ssl)
                     #ifdef WOLFSSL_DTLS
                         if (ssl->options.dtls) {
                             DtlsMsgPoolReset(ssl);
-                            ssl->keys.nextEpoch++;
-                            ssl->keys.nextSeq_lo = 0;
+                            ssl->keys.prevSeq_lo = ssl->keys.nextSeq_lo;
+                            ssl->keys.prevSeq_hi = ssl->keys.nextSeq_hi;
                             XMEMCPY(ssl->keys.prevWindow, ssl->keys.window,
                                     DTLS_SEQ_SZ);
+                            ssl->keys.nextEpoch++;
+                            ssl->keys.nextSeq_lo = 0;
+                            ssl->keys.nextSeq_hi = 0;
                             XMEMSET(ssl->keys.window, 0, DTLS_SEQ_SZ);
                         }
                     #endif
@@ -10527,7 +10541,9 @@ int SendCertificate(WOLFSSL* ssl)
 
             sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
                                   handshake, 1, 0);
-            XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (inputSz > 0)
+                XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             if (sendSz < 0)
                 return sendSz;
@@ -10611,7 +10627,8 @@ int SendCertificateRequest(WOLFSSL* ssl)
     /* write to output */
     output[i++] = (byte)typeTotal;  /* # of types */
 #ifdef HAVE_ECC
-    if (ssl->options.cipherSuite0 == ECC_BYTE &&
+    if ((ssl->options.cipherSuite0 == ECC_BYTE ||
+         ssl->options.cipherSuite0 == CHACHA_BYTE) &&
                      ssl->specs.sig_algo == ecc_dsa_sa_algo) {
         output[i++] = ecdsa_sign;
     } else
@@ -11746,6 +11763,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case DTLS_POOL_SZ_E:
         return "Maximum DTLS pool size exceeded";
+
+    case DECODE_E:
+        return "Decode handshake message error";
 
     default :
         return "unknown error number";

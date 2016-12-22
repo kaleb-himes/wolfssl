@@ -192,6 +192,7 @@ then
     enable_stunnel=yes
     enable_pwdbased=yes
 fi
+AM_CONDITIONAL([BUILD_DISTRO], [test "x$ENABLED_DISTRO" = "xyes"])
 
 
 # SINGLE THREADED
@@ -1781,7 +1782,12 @@ then
     *linux* | *darwin* | *freebsd*)
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR" ;;
     *)
-        AC_MSG_ERROR([crl monitor only allowed on linux, OS X, or freebsd]) ;;
+        if test "x$ENABLED_DISTRO" = "xyes" ; then
+            ENABLED_CRL_MONITOR="no"
+        else
+            AC_MSG_ERROR( [crl monitor only allowed on linux, OS X, or freebsd])
+        fi
+        break;;
     esac
 fi
 
@@ -2183,7 +2189,7 @@ then
         ENABLED_ECC="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
-        
+
         if test "$ENABLED_ECC_SHAMIR" = "yes"
         then
             AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
@@ -2231,7 +2237,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
         AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
     fi
-    if test "x$ENABLED_CRL_MONITOR" = "xno"
+    if test "x$ENABLED_CRL_MONITOR" = "xno" && test "x$ENABLED_DISTRO" = "xno"
     then
         ENABLED_CRL_MONITOR="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR"
@@ -2256,7 +2262,7 @@ then
         ENABLED_ECC="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
-        
+
         if test "$ENABLED_ECC_SHAMIR" = "yes"
         then
             AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
@@ -2360,7 +2366,7 @@ then
         ENABLED_ECC="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
-        
+
         if test "$ENABLED_ECC_SHAMIR" = "yes"
         then
             AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
@@ -2425,6 +2431,24 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_PWDBASED], [test "x$ENABLED_PWDBASED" = "xyes"])
+
+
+AC_ARG_ENABLE([scrypt],
+    [  --enable-scrypt         Enable SCRYPT (default: disabled)],
+    [ ENABLED_SCRYPT=$enableval ],
+    [ ENABLED_SCRYPT=no ]
+    )
+
+if test "$ENABLED_SCRYPT" = "yes"
+then
+    if test "$ENABLED_PWDBASED" = "no"
+    then
+        AC_MSG_ERROR([cannot enable scrypt without enabling pwdbased.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_SCRYPT"
+fi
+
+AM_CONDITIONAL([BUILD_SCRYPT], [test "x$ENABLED_SCRYPT" = "xyes"])
 
 
 # wolfCrypt Only Build
@@ -2857,7 +2881,7 @@ AC_ARG_ENABLE([asynccrypt],
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT"
-    
+
     # if Cavium not enabled the use async simulator for testing
     if test "x$ENABLED_CAVIUM" = "xno"
     then
@@ -3011,6 +3035,16 @@ if test "x$ENABLED_PKCS7" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS7"
     # Enable prereqs if not already enabled
+    if test "x$ENABLED_AESKEYWRAP" = "xno"
+    then
+        ENABLED_AESKEYWRAP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_KEYWRAP -DWOLFSSL_AES_DIRECT"
+    fi
+    if test "x$ENABLED_X963KDF" = "xno"
+    then
+        ENABLED_X963KDF="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_X963_KDF"
+    fi
     AS_IF([test "x$ENABLED_DES3" = "xno"],
           [ENABLED_DES3=yes])
 fi
@@ -3054,7 +3088,8 @@ AS_IF([test "x$ENABLED_DTLS" = "xno" && \
 ################################################################################
 
 # OPTIMIZE FLAGS
-if test "$GCC" = "yes"
+# For distro disable custom build options that interfere with symbol generation
+if test "$GCC" = "yes" && test "$ENABLED_DISTRO" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -Wall -Wno-unused"
     if test "$ax_enable_debug" = "no"
@@ -3103,7 +3138,11 @@ case $host_os in
 esac
 
 # add user C_EXTRA_FLAGS back
-CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
+# For distro disable custom build options that interfere with symbol generation
+if test "$ENABLED_DISTRO" = "no"
+then
+    CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
+fi
 OPTION_FLAGS="$USER_CFLAGS $USER_C_EXTRA_FLAGS $AM_CFLAGS"
 
 CREATE_HEX_VERSION
@@ -3289,6 +3328,7 @@ echo "   * RABBIT:                     $ENABLED_RABBIT"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
 echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
 echo "   * PWDBASED:                   $ENABLED_PWDBASED"
+echo "   * scrypt:                     $ENABLED_SCRYPT"
 echo "   * wolfCrypt Only:             $ENABLED_CRYPTONLY"
 echo "   * HKDF:                       $ENABLED_HKDF"
 echo "   * X9.63 KDF:                  $ENABLED_X963KDF"

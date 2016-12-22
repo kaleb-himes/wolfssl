@@ -410,7 +410,7 @@ time_t XTIME(time_t * timer)
 
 static INLINE word32 btoi(byte b)
 {
-    return b - 0x30;
+    return (word32)(b - 0x30);
 }
 
 
@@ -802,6 +802,19 @@ static const byte blkAes256CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 42};
 static const byte blkDesCbcOid[]  = {43, 14, 3, 2, 7};
 static const byte blkDes3CbcOid[] = {42, 134, 72, 134, 247, 13, 3, 7};
 
+/* keyWrapType */
+static const byte wrapAes128Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 5};
+static const byte wrapAes192Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 25};
+static const byte wrapAes256Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 45};
+
+/* cmsKeyAgreeType */
+static const byte dhSinglePass_stdDH_sha1kdf_Oid[]   =
+                                          {43, 129, 5, 16, 134, 72, 63, 0, 2};
+static const byte dhSinglePass_stdDH_sha224kdf_Oid[] = {43, 129, 4, 1, 11, 0};
+static const byte dhSinglePass_stdDH_sha256kdf_Oid[] = {43, 129, 4, 1, 11, 1};
+static const byte dhSinglePass_stdDH_sha384kdf_Oid[] = {43, 129, 4, 1, 11, 2};
+static const byte dhSinglePass_stdDH_sha512kdf_Oid[] = {43, 129, 4, 1, 11, 3};
+
 /* ocspType */
 #ifdef HAVE_OCSP
     static const byte ocspBasicOid[] = {43, 6, 1, 5, 5, 7, 48, 1, 1};
@@ -1124,12 +1137,55 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(extExtKeyUsageOcspSignOid);
                     break;
             }
+            break;
 
         case oidKdfType:
             switch (id) {
                 case PBKDF2_OID:
                     oid = pbkdf2Oid;
                     *oidSz = sizeof(pbkdf2Oid);
+                    break;
+            }
+            break;
+
+        case oidKeyWrapType:
+            switch (id) {
+                case AES128_WRAP:
+                    oid = wrapAes128Oid;
+                    *oidSz = sizeof(wrapAes128Oid);
+                    break;
+                case AES192_WRAP:
+                    oid = wrapAes192Oid;
+                    *oidSz = sizeof(wrapAes192Oid);
+                    break;
+                case AES256_WRAP:
+                    oid = wrapAes256Oid;
+                    *oidSz = sizeof(wrapAes256Oid);
+                    break;
+            }
+            break;
+
+        case oidCmsKeyAgreeType:
+            switch (id) {
+                case dhSinglePass_stdDH_sha1kdf_scheme:
+                    oid = dhSinglePass_stdDH_sha1kdf_Oid;
+                    *oidSz = sizeof(dhSinglePass_stdDH_sha1kdf_Oid);
+                    break;
+                case dhSinglePass_stdDH_sha224kdf_scheme:
+                    oid = dhSinglePass_stdDH_sha224kdf_Oid;
+                    *oidSz = sizeof(dhSinglePass_stdDH_sha224kdf_Oid);
+                    break;
+                case dhSinglePass_stdDH_sha256kdf_scheme:
+                    oid = dhSinglePass_stdDH_sha256kdf_Oid;
+                    *oidSz = sizeof(dhSinglePass_stdDH_sha256kdf_Oid);
+                    break;
+                case dhSinglePass_stdDH_sha384kdf_scheme:
+                    oid = dhSinglePass_stdDH_sha384kdf_Oid;
+                    *oidSz = sizeof(dhSinglePass_stdDH_sha384kdf_Oid);
+                    break;
+                case dhSinglePass_stdDH_sha512kdf_scheme:
+                    oid = dhSinglePass_stdDH_sha512kdf_Oid;
+                    *oidSz = sizeof(dhSinglePass_stdDH_sha512kdf_Oid);
                     break;
             }
             break;
@@ -1900,6 +1956,14 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
         }
 
         if (GetLength(input, &inOutIdx, &length, sz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return ASN_PARSE_E;
+        }
+
+        if (length > MAX_IV_SIZE) {
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);

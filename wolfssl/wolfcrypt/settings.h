@@ -958,9 +958,11 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_WOLFSSL_DIR
     #undef  NO_RABBIT
     #define NO_RABBIT
+    #undef  NO_64BIT
+    #define NO_64BIT
     #define STM32F2_RNG
     #define STM32F2_CRYPTO
-    #ifndef __GNUC__
+    #if !defined(__GNUC__) && !defined(__ICCARM__)
         #define KEIL_INTRINSICS
     #endif
     #define NO_OLD_RNGNAME
@@ -982,10 +984,12 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_WOLFSSL_DIR
     #undef  NO_RABBIT
     #define NO_RABBIT
+    #undef  NO_64BIT
+    #define NO_64BIT
     #define STM32F4_RNG
     #define STM32F4_CRYPTO
     #define NO_OLD_RNGNAME
-    #ifndef __GNUC__
+    #if !defined(__GNUC__) && !defined(__ICCARM__)
         #define KEIL_INTRINSICS
     #endif
     #ifdef WOLFSSL_STM32_CUBEMX
@@ -1248,6 +1252,20 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif
 
+#ifdef WOLFSSL_SGX
+    #define WOLFCRYPT_ONLY   /* limitation until IO resolved */
+    #define SINGLE_THREADED
+    #define NO_ASN_TIME /* can not use headers such as windows.h */
+
+    /* options used in created example */
+    #define HAVE_AESGCM
+    #define USE_CERT_BUFFERS_2048
+    #define USE_FAST_MATH
+    #define NO_RC4
+    #define NO_DES3
+    #define NO_SHA
+    #define NO_MD5
+#endif /* WOLFSSL_SGX */
 
 /* FreeScale MMCAU hardware crypto has 4 byte alignment.
    However, fsl_mmcau.h gives API with no alignment requirements (4 byte alignment is managed internally by fsl_mmcau.c) */
@@ -1479,6 +1497,15 @@ static char *fgets(char *buff, int sz, FILE *fp)
 #ifdef HAVE_AES_KEYWRAP
     #ifndef WOLFSSL_AES_DIRECT
         #error AES key wrap requires AES direct please define WOLFSSL_AES_DIRECT
+    #endif
+#endif
+
+#ifdef HAVE_PKCS7
+    #ifndef HAVE_AES_KEYWRAP
+        #error PKCS7 requires AES key wrap please define HAVE_AES_KEYWRAP
+    #endif
+    #ifndef HAVE_X963_KDF
+        #error PKCS7 requires X963 KDF please define HAVE_X963_KDF
     #endif
 #endif
 
