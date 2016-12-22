@@ -89,6 +89,8 @@ STATIC INLINE word32 ByteReverseWord32(word32 value)
 #ifdef PPC_INTRINSICS
     /* PPC: load reverse indexed instruction */
     return (word32)__lwbrx(&value,0);
+#elif defined(__ICCARM__)
+    return (word32)__REV(value);
 #elif defined(KEIL_INTRINSICS)
     return (word32)__rev(value);
 #elif defined(FAST_ROTATE)
@@ -167,19 +169,9 @@ STATIC INLINE void XorWords(wolfssl_word* r, const wolfssl_word* a, word32 n)
 
 STATIC INLINE void xorbuf(void* buf, const void* mask, word32 count)
 {
-    wolfssl_word bufword, maskword;
-#ifdef WC_16BIT_CPU
-    bufword = (word16)buf;
-    maskword = (word16)mask;
-#else
-    bufword = (wolfssl_word)buf;
-    maskword = (wolfssl_word)mask;
-#endif
-
-    if (((bufword | maskword | count) % WOLFSSL_WORD_SIZE) == 0) {
-        XorWords((wolfssl_word*)buf, (wolfssl_word*)mask,
-                                                count / WOLFSSL_WORD_SIZE);
-    }
+    if (((wolfssl_word)buf | (wolfssl_word)mask | count) % WOLFSSL_WORD_SIZE == 0)
+        XorWords( (wolfssl_word*)buf,
+                  (const wolfssl_word*)mask, count / WOLFSSL_WORD_SIZE);
     else {
         word32 i;
         byte*       b = (byte*)buf;
@@ -194,7 +186,13 @@ STATIC INLINE void xorbuf(void* buf, const void* mask, word32 count)
 STATIC INLINE void ForceZero(const void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;
+#ifdef WOLFSSL_X86_64_BUILD
+    volatile word64* w;
 
+    for (w = (volatile word64*)z; len >= sizeof(*w); len -= sizeof(*w))
+        *w++ = 0;
+    z = (volatile byte*)w;
+#endif
     while (len--) *z++ = 0;
 }
 
