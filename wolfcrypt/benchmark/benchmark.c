@@ -235,10 +235,6 @@ void bench_rng(void);
 
 double current_time(int);
 
-#ifdef WOLFCRYPT_PROFILE_STACK
-extern int stack_profile_test(void *args);
-#endif
-
 #ifdef HAVE_CAVIUM
 
 static int OpenNitroxDevice(int dma_mode,int dev_id)
@@ -517,10 +513,6 @@ int benchmark_test(void *args)
 
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     ShowMemoryTracker();
-#endif
-    
-#ifdef WOLFCRYPT_PROFILE_STACK
-    stack_profile_test(NULL);
 #endif
 
     EXIT_TEST(0);

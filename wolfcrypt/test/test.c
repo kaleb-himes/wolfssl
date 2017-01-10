@@ -4440,6 +4440,7 @@ int idea_test(void)
 
         wc_FreeRng(&rng);
     }
+  #endif /* WC_NO_RNG */
 #ifdef HAVE_STACK_SIZE
     end = wc_GetStackPosition();
     stackBytesUsed += wc_CalcStackUsage(wolfStackPointer, end);
