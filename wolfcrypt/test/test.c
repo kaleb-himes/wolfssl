@@ -708,12 +708,22 @@ int wolfcrypt_test(void* args)
     if ( (ret = ecc_test()) != 0)
         return err_sys("ECC      test failed!\n", ret);
     else
+    #ifdef HAVE_STACK_SIZE
+        printf( "ECC      test passed!     stack usage: ");
+        wc_PrintStackStats(); wc_ResetStackStats();
+    #else
         printf( "ECC      test passed!\n");
+    #endif
     #ifdef HAVE_ECC_ENCRYPT
         if ( (ret = ecc_encrypt_test()) != 0)
             return err_sys("ECC Enc  test failed!\n", ret);
         else
+        #ifdef HAVE_STACK_SIZE
+            printf("ECC Enc  test passed!     stack usage: ");
+            wc_PrintStackStats(); wc_ResetStackStats();
+        #else
             printf( "ECC Enc  test passed!\n");
+        #endif
     #endif
     #ifdef USE_CERT_BUFFERS_256
         if ( (ret = ecc_test_buffers()) != 0)
