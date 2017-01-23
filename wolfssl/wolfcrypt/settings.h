@@ -199,7 +199,7 @@
 #endif
 
 #ifdef MICROCHIP_PIC24
-    #define SIZEOF_LONG_LONG 4
+    #define SIZEOF_LONG_LONG 8
     #define SINGLE_THREADED
     #define WOLFSSL_USER_IO
     #define NO_WRITEV
@@ -208,7 +208,6 @@
     #define BENCH_EMBEDDED
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
-    #define NO_64BIT
     #define WC_16BIT_CPU
 
     /* type definitions for 16-bit micro */
@@ -217,6 +216,7 @@
     typedef unsigned char byte;
     typedef unsigned int word16;
     #define NATIVE_32T unsigned long
+    #define NATIVE_16T unsigned int;
     /* end types defines */
 #endif
 

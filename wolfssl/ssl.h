@@ -37,6 +37,7 @@
 
 #ifndef WOLFSSL_TYPES
     #define NATIVE_32T unsigned int
+    #define NATIVE_16T unsigned short
 #endif
 
 #ifndef NO_FILESYSTEM
@@ -172,7 +173,7 @@ typedef struct WOLFSSL_X509_OBJECT {
 
 typedef struct WOLFSSL_BUFFER_INFO {
     unsigned char* buffer;
-    unsigned int length;
+    NATIVE_32T length;
 } WOLFSSL_BUFFER_INFO;
 
 typedef struct WOLFSSL_X509_STORE_CTX {
@@ -1035,8 +1036,8 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX*, const unsigned char* 
                                              int format);
 #endif
 
-WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, unsigned short);
-WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, unsigned short);
+WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, NATIVE_16T);
+WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, NATIVE_16T);
 WOLFSSL_API int wolfSSL_GetDhKey_Sz(WOLFSSL*);
 #endif /* NO_DH */
 

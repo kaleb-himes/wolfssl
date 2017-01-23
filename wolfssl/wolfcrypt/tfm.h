@@ -221,7 +221,7 @@
       #else
          typedef unsigned long long ulong64;
       #endif
-      typedef unsigned int       fp_digit;
+      typedef NATIVE_32T fp_digit;
       #define SIZEOF_FP_DIGIT 4
       typedef ulong64            fp_word;
       #define FP_32BIT

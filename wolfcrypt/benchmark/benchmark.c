@@ -2564,12 +2564,12 @@ void bench_ed25519KeySign(void)
 
         uint16_t ns;
         if (reset) {
-            TMR1_SoftwareCounterClear();
+            TMR1_Counter16BitSet(0);
         }
 
         ns = TMR1_Counter16BitGet();
 
-        return ns / 1000.0;
+        return (ns * 1.02375) / 1000.0 ;
     }
 
 #elif defined MICROCHIP_PIC32
