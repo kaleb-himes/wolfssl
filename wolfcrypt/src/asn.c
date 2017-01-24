@@ -96,13 +96,6 @@ ASN Options:
 #endif
 
 
-#ifndef TRUE
-    #define TRUE  1
-#endif
-#ifndef FALSE
-    #define FALSE 0
-#endif
-
 #ifndef NO_ASN_TIME
 #if defined(USER_TIME)
     /* user time, and gmtime compatible functions, there is a gmtime
@@ -636,7 +629,6 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
 }
 #endif /* !NO_PWDBASED */
 
-#ifndef NO_ASN_TIME
 /* May not have one, not an error */
 static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
                               word32 maxIdx)
@@ -654,7 +646,6 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
 
     return 0;
 }
-#endif /* !NO_ASN_TIME */
 
 int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                   word32 maxIdx)
@@ -2488,6 +2479,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->publicKey       = 0;
     cert->pubKeySize      = 0;
     cert->pubKeyStored    = 0;
+    cert->keyOID          = 0;
     cert->version         = 0;
     cert->signature       = 0;
     cert->subjectCN       = 0;
@@ -2560,6 +2552,10 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
 #ifdef OPENSSL_EXTRA
     XMEMSET(&cert->issuerName, 0, sizeof(DecodedName));
     XMEMSET(&cert->subjectName, 0, sizeof(DecodedName));
+    cert->extCRLdistSet = 0;
+    cert->extCRLdistCrit = 0;
+    cert->extAuthInfoSet = 0;
+    cert->extAuthInfoCrit = 0;
     cert->extBasicConstSet = 0;
     cert->extBasicConstCrit = 0;
     cert->extSubjAltNameSet = 0;
@@ -2660,7 +2656,6 @@ void FreeDecodedCert(DecodedCert* cert)
 #endif /* OPENSSL_EXTRA */
 }
 
-#ifndef NO_ASN_TIME
 static int GetCertHeader(DecodedCert* cert)
 {
     int ret = 0, len;
@@ -2707,9 +2702,7 @@ static int StoreRsaKey(DecodedCert* cert)
 
     return 0;
 }
-#endif
-#endif /* !NO_ASN_TIME */
-
+#endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
 
@@ -2730,7 +2723,6 @@ static int StoreRsaKey(DecodedCert* cert)
 
 #endif /* HAVE_ECC */
 
-#ifndef NO_ASN_TIME
 static int GetKey(DecodedCert* cert)
 {
     int length;
@@ -2870,7 +2862,6 @@ static int GetKey(DecodedCert* cert)
             return ASN_UNKNOWN_OID_E;
     }
 }
-
 
 /* process NAME, either issuer or subject */
 static int GetName(DecodedCert* cert, int nameType)
@@ -3351,6 +3342,7 @@ static int GetName(DecodedCert* cert, int nameType)
 }
 
 
+#ifndef NO_ASN_TIME
 #if !defined(NO_TIME_H) && defined(USE_WOLF_VALIDDATE)
 
 /* to the second */
@@ -3432,7 +3424,7 @@ int GetTimeString(byte* date, int format, char* buf, int len)
 
     return 1;
 }
-#endif /* MYSQL compatibility */
+#endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
 int ExtractDate(const unsigned char* date, unsigned char format,
                                                   struct tm* certTime, int* idx)
@@ -3536,6 +3528,8 @@ int wc_GetTime(void* timePtr, word32 timeSize)
     return 0;
 }
 
+#endif /* !NO_ASN_TIME */
+
 static int GetDate(DecodedCert* cert, int dateType)
 {
     int    length;
@@ -3544,6 +3538,7 @@ static int GetDate(DecodedCert* cert, int dateType)
     word32 startIdx = 0;
 
     XMEMSET(date, 0, MAX_DATE_SIZE);
+
     if (dateType == BEFORE)
         cert->beforeDate = &cert->source[cert->srcIdx];
     else
@@ -3568,16 +3563,17 @@ static int GetDate(DecodedCert* cert, int dateType)
     else
         cert->afterDateLen  = cert->srcIdx - startIdx;
 
+#ifndef NO_ASN_TIME
     if (!XVALIDATE_DATE(date, b, dateType)) {
         if (dateType == BEFORE)
             return ASN_BEFORE_DATE_E;
         else
             return ASN_AFTER_DATE_E;
     }
+#endif
 
     return 0;
 }
-
 
 static int GetValidity(DecodedCert* cert, int verify)
 {
@@ -3638,7 +3634,6 @@ int DecodeToKey(DecodedCert* cert, int verify)
     return ret;
 }
 
-
 static int GetSignature(DecodedCert* cert)
 {
     int    length;
@@ -3662,7 +3657,6 @@ static int GetSignature(DecodedCert* cert)
 
     return 0;
 }
-#endif /* !NO_ASN_TIME */
 
 static word32 SetDigest(const byte* digest, word32 digSz, byte* output)
 {
@@ -3885,7 +3879,6 @@ int wc_GetCTC_HashOID(int type)
     };
 }
 
-#ifndef NO_ASN_TIME
 /* return true (1) or false (0) for Confirmation */
 static int ConfirmSignature(const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
@@ -4327,7 +4320,6 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
-
 static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
@@ -4520,7 +4512,6 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
     }
     return 0;
 }
-
 
 static int DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
 {
@@ -4953,7 +4944,6 @@ static int DecodeNameConstraints(byte* input, int sz, DecodedCert* cert)
     return 0;
 }
 #endif /* IGNORE_NAME_CONSTRAINTS */
-#endif /* NO_ASN_TIME */
 
 #if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)
 
@@ -5123,7 +5113,6 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
     }
 #endif /* WOLFSSL_SEP */
 
-#ifndef NO_ASN_TIME
 static int DecodeCertExtensions(DecodedCert* cert)
 /*
  *  Processing the Certificate Extensions. This does not modify the current
@@ -5206,11 +5195,19 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case CRL_DIST_OID:
+                #ifdef OPENSSL_EXTRA
+                    cert->extCRLdistSet  = 1;
+                    cert->extCRLdistCrit = critical;
+                #endif
                 if (DecodeCrlDist(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
                 break;
 
             case AUTH_INFO_OID:
+                #ifdef OPENSSL_EXTRA
+                    cert->extAuthInfoSet  = 1;
+                    cert->extAuthInfoCrit = critical;
+                #endif
                 if (DecodeAuthInfo(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
                 break;
@@ -5306,7 +5303,6 @@ static int DecodeCertExtensions(DecodedCert* cert)
     return criticalFail ? ASN_CRIT_EXT_E : 0;
 }
 
-
 int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 {
     int   ret;
@@ -5340,8 +5336,6 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 
     return ret;
 }
-#endif /* !NO_ASN_TIME */
-
 
 /* from SSL proper, for locking can't do find here anymore */
 #ifdef __cplusplus
@@ -5377,7 +5371,6 @@ Signer* GetCAByName(void* signers, byte* hash)
 
 #endif /* WOLFCRYPT_ONLY || NO_CERTS */
 
-#ifndef NO_ASN_TIME
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
     word32 confirmOID;
@@ -5518,7 +5511,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
     return 0;
 }
-#endif /* !NO_ASN_TIME */
 
 /* Create and init an new signer */
 Signer* MakeSigner(void* heap)
@@ -5734,6 +5726,8 @@ const char* BEGIN_CERT_REQ     = "-----BEGIN CERTIFICATE REQUEST-----";
 const char* END_CERT_REQ       = "-----END CERTIFICATE REQUEST-----";
 const char* BEGIN_DH_PARAM     = "-----BEGIN DH PARAMETERS-----";
 const char* END_DH_PARAM       = "-----END DH PARAMETERS-----";
+const char* BEGIN_DSA_PARAM    = "-----BEGIN DSA PARAMETERS-----";
+const char* END_DSA_PARAM      = "-----END DSA PARAMETERS-----";
 const char* BEGIN_X509_CRL     = "-----BEGIN X509 CRL-----";
 const char* END_X509_CRL       = "-----END X509 CRL-----";
 const char* BEGIN_RSA_PRIV     = "-----BEGIN RSA PRIVATE KEY-----";
@@ -5861,6 +5855,20 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
     headerLen = (int)XSTRLEN(header);
     footerLen = (int)XSTRLEN(footer);
+
+    /* if null output and 0 size passed in then return size needed */
+    if (!output && outSz == 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        outLen = 0;
+        if ((err = Base64_Encode(der, derSz, NULL, (word32*)&outLen))
+                != LENGTH_ONLY_E) {
+            return err;
+        }
+        return headerLen + footerLen + outLen;
+    }
 
     if (!der || !output) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -6251,18 +6259,6 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
 
 
 #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
-
-
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
 
 /* Initialize and Set Certificate defaults:
    version    = 3 (0x2)
@@ -9681,7 +9677,13 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         }
     }
     else {
-        Signer* ca = GetCA(cm, resp->issuerKeyHash);
+        Signer* ca = NULL;
+
+        #ifndef NO_SKID
+            ca = GetCA(cm, resp->issuerKeyHash);
+        #else
+            ca = GetCA(cm, resp->issuerHash);
+        #endif
 
         if (!ca || !ConfirmSignature(resp->response, resp->responseSz,
                                      ca->publicKey, ca->pubKeySize, ca->keyOID,
@@ -9974,7 +9976,7 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 
     /* Nonces are not critical. The responder may not necessarily add
      * the nonce to the response. */
-    if (req->nonceSz && resp->nonceSz != 0) {
+    if (resp->nonceSz != 0) {
         cmp = req->nonceSz - resp->nonceSz;
         if (cmp != 0)
         {

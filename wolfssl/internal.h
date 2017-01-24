@@ -150,6 +150,11 @@
     #endif
 #endif
 
+#ifndef CHAR_BIT
+    /* Needed for DTLS without big math */
+    #include <limits.h>
+#endif
+
 
 #ifdef HAVE_LIBZ
     #include "zlib.h"
@@ -162,12 +167,6 @@
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
-#endif
-
-#ifdef NO_AES
-    #if !defined (ALIGN16)
-        #define ALIGN16
-    #endif
 #endif
 
 #ifdef NO_SHA
@@ -675,8 +674,9 @@ typedef byte word24[3];
     #define BUILD_DES3
 #endif
 
-#ifdef NO_AES
+#if defined(NO_AES) || defined(NO_AES_DECRYPT)
     #define AES_BLOCK_SIZE 16
+    #undef  BUILD_AES
 #else
     #undef  BUILD_AES
     #define BUILD_AES
@@ -924,7 +924,6 @@ enum Misc {
     LENGTH_SZ      =  2,       /* length field for HMAC, data only */
     VERSION_SZ     =  2,       /* length of proctocol version */
     SEQ_SZ         =  8,       /* 64 bit sequence number  */
-    BYTE3_LEN      =  3,       /* up to 24 bit byte lengths */
     ALERT_SIZE     =  2,       /* level + description     */
     VERIFY_HEADER  =  2,       /* always use 2 bytes      */
     EXT_ID_SZ      =  2,       /* always use 2 bytes      */
@@ -1253,7 +1252,9 @@ enum BIO_TYPE {
     BIO_BUFFER = 1,
     BIO_SOCKET = 2,
     BIO_SSL    = 3,
-    BIO_MEMORY = 4
+    BIO_MEMORY = 4,
+    BIO_BIO    = 5,
+    BIO_FILE   = 6
 };
 
 
@@ -1265,15 +1266,24 @@ struct WOLFSSL_BIO_METHOD {
 
 /* wolfSSL BIO type */
 struct WOLFSSL_BIO {
-    byte        type;          /* method type */
-    byte        close;         /* close flag */
-    byte        eof;           /* eof flag */
     WOLFSSL*     ssl;           /* possible associated ssl */
-    byte*       mem;           /* memory buffer */
-    int         memLen;        /* memory buffer length */
-    int         fd;            /* possible file descriptor */
+#ifndef NO_FILESYSTEM
+    XFILE        file;
+#endif
     WOLFSSL_BIO* prev;          /* previous in chain */
     WOLFSSL_BIO* next;          /* next in chain */
+    WOLFSSL_BIO* pair;          /* BIO paired with */
+    void*        heap;          /* user heap hint */
+    byte*        mem;           /* memory buffer */
+    int         wrSz;          /* write buffer size (mem) */
+    int         wrIdx;         /* current index for write buffer */
+    int         rdIdx;         /* current read index */
+    int         readRq;        /* read request */
+    int         memLen;        /* memory buffer length */
+    int         fd;            /* possible file descriptor */
+    int         eof;           /* eof flag */
+    byte        type;          /* method type */
+    byte        close;         /* close flag */
 };
 
 
@@ -2005,6 +2015,9 @@ struct WOLFSSL_CTX {
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     pem_password_cb passwd_cb;
     void*           userdata;
+    WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
+    byte            readAhead;
+    void*           userPRFArg; /* passed to prf callback */
 #endif /* OPENSSL_EXTRA */
 #ifdef HAVE_STUNNEL
     void*           ex_data[MAX_EX_DATA];
@@ -2030,6 +2043,9 @@ struct WOLFSSL_CTX {
         SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */
         void*              ticketEncCtx;  /* session encrypt context */
         int                ticketHint;    /* ticket hint in seconds */
+    #endif
+    #ifdef HAVE_SUPPORTED_CURVES
+        byte userCurves;                  /* indicates user called wolfSSL_CTX_UseSupportedCurve */
     #endif
 #endif
 #ifdef ATOMIC_USER
@@ -2382,6 +2398,9 @@ typedef struct Options {
     wc_psk_server_callback server_psk_cb;
     word16            havePSK:1;            /* psk key set by user */
 #endif /* NO_PSK */
+#ifdef OPENSSL_EXTRA
+    unsigned long     mask; /* store SSL_OP_ flags */
+#endif
 
     /* on/off or small bit flags, optimize layout */
     word16            sendVerify:2;     /* false = 0, true = 1, sendBlank = 2 */
@@ -2441,6 +2460,9 @@ typedef struct Options {
 #endif
 #endif
     word16            haveEMS:1;          /* using extended master secret */
+#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
+    word16            userCurves:1;       /* indicates user called wolfSSL_UseSupportedCurve */
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
@@ -2506,6 +2528,7 @@ struct WOLFSSL_STACK {
     union {
         WOLFSSL_X509* x509;
         WOLFSSL_BIO*  bio;
+        WOLFSSL_ASN1_OBJECT* obj;
     } data;
     WOLFSSL_STACK* next;
 };
@@ -2569,9 +2592,21 @@ struct WOLFSSL_X509 {
     void*            heap;                           /* heap hint */
     byte             dynamicMemory;                  /* dynamic memory flag */
     byte             isCa;
+#ifdef WOLFSSL_CERT_EXT
+    char             certPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
+    int              certPoliciesNb;
+#endif /* WOLFSSL_CERT_EXT */
 #ifdef OPENSSL_EXTRA
     word32           pathLength;
     word16           keyUsage;
+    byte             CRLdistSet;
+    byte             CRLdistCrit;
+    byte*            CRLInfo;
+    int              CRLInfoSz;
+    byte             authInfoSet;
+    byte             authInfoCrit;
+    byte*            authInfo;
+    int              authInfoSz;
     byte             basicConstSet;
     byte             basicConstCrit;
     byte             basicConstPlSet;
@@ -2587,6 +2622,10 @@ struct WOLFSSL_X509 {
     word32           subjKeyIdSz;
     byte             keyUsageSet;
     byte             keyUsageCrit;
+    byte             extKeyUsageCrit;
+    byte*            extKeyUsageSrc;
+    word32           extKeyUsageSz;
+    word32           extKeyUsageCount;
 #endif /* OPENSSL_EXTRA */
 };
 
@@ -2736,6 +2775,11 @@ struct WOLFSSL {
 #ifdef OPENSSL_EXTRA
     WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
+    unsigned long    peerVerifyRet;
+    byte             readAhead;
+#ifdef HAVE_PK_CALLBACKS
+    void*            loggingCtx;         /* logging callback argument */
+#endif
 #endif
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;
