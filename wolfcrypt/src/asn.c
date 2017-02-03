@@ -2277,10 +2277,12 @@ int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
     if (GetLength(input, &i, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if ( (b = input[i++]) == 0x00)
-        length--;
-    else
-        i--;
+    if (length > 0) {
+        if ( (b = input[i++]) == 0x00)
+            length--;
+        else
+            i--;
+    }
 
     if (length <= (int)*pInOutSz) {
         XMEMCPY(p, &input[i], length);
