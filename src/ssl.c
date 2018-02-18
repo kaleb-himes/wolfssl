@@ -21551,7 +21551,7 @@ int wolfSSL_RAND_write_file(const char* fname)
 
 
 /* These constant values are protocol values made by egd */
-#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API)
+#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) && !defined(NETOS)
     #define WOLFSSL_EGD_NBLOCK 0x01
     #include <sys/un.h>
 #endif

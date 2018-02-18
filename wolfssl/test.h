@@ -148,6 +148,7 @@
 #ifdef HAVE_CAVIUM
     #include <wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h>
 #endif
+
 #ifdef _MSC_VER
     /* disable conversion warning */
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -356,13 +357,12 @@ typedef struct tcp_ready {
     word16 ready;              /* predicate */
     word16 port;
     char*  srfName;     /* server ready file name */
-#ifndef SINGLE_THREADED
-    #ifdef NETOS
-        TX_MUTEX mutex;
-    #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
-        pthread_mutex_t mutex;
-        pthread_cond_t  cond;
-    #endif
+#ifdef SINGLE_THREADED
+#elif defined(NETOS)
+    TX_MUTEX mutex;
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
+    pthread_mutex_t mutex;
+    pthread_cond_t  cond;
 #endif
 } tcp_ready;
 
@@ -372,13 +372,12 @@ static INLINE void InitTcpReady(tcp_ready* ready)
     ready->ready = 0;
     ready->port = 0;
     ready->srfName = NULL;
-#ifndef SINGLE_THREADED
-    #ifdef NETOS
-        tx_mutex_create(&ready->mutex, "wolfSSL Lock", TX_INHERIT);
-    #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-        pthread_mutex_init(&ready->mutex, 0);
-        pthread_cond_init(&ready->cond, 0);
-    #endif
+#ifdef SINGLE_THREADED
+#elif defined(NETOS)
+    tx_mutex_create(&ready->mutex, "wolfSSL Lock", TX_INHERIT);
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
+    pthread_mutex_init(&ready->mutex, 0);
+    pthread_cond_init(&ready->cond, 0);
 #endif
 }
 
@@ -419,8 +418,11 @@ typedef struct func_args {
     callback_functions *callbacks;
 } func_args;
 
-
-
+#ifdef NETOS
+    int dc_log_printf(char* format, ...);
+    #undef printf
+    #define printf dc_log_printf
+#endif
 
 void wait_tcp_ready(func_args*);
 
@@ -436,6 +438,13 @@ void join_thread(THREAD_TYPE);
     static const char* const wolfSSLIP   = "::1";
 #endif
 static const word16      wolfSSLPort = 11111;
+
+
+#ifdef __GNUC__
+    #define WC_NORETURN __attribute__((noreturn))
+#else
+    #define WC_NORETURN
+#endif
 
 #if !defined(NETOS)
 static INLINE WC_NORETURN void err_sys(const char* msg)
@@ -877,7 +886,7 @@ static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
 static INLINE void udp_connect(SOCKET_T* sockfd, void* addr, int addrSz)
 {
     if (connect(*sockfd, (const struct sockaddr*)addr, addrSz) != 0)
-        err_sys("tcp connect failed");
+        err_sys("udp connect failed");
 }
 
 
