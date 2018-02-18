@@ -114,6 +114,8 @@
         #elif defined(EBSNET)
             #include "rtipapi.h"  /* errno */
             #include "socket.h"
+        #elif defined(NETOS)
+            #include <sockapi.h>
         #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP)
             #include <sys/socket.h>
             #include <arpa/inet.h>

@@ -301,7 +301,17 @@ void simple_test(func_args* args)
 
 void wait_tcp_ready(func_args* args)
 {
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+#ifdef NETOS
+    (void)tx_mutex_get(&args->signal->mutex, TX_WAIT_FOREVER);
+
+    //TODO
+    //if (!args->signal->ready)
+        //pthread_cond_wait(&args->signal->cond, &args->signal->mutex);
+    args->signal->ready = 0; /* reset */
+
+    (void)tx_mutex_put(&args->signal->mutex);
+
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_lock(&args->signal->mutex);
 
     if (!args->signal->ready)
@@ -317,7 +327,27 @@ void wait_tcp_ready(func_args* args)
 
 void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 {
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+#if defined(NETOS)
+    int result;
+    static char TestSuiteThreadStack[65535];
+
+    memset (thread, 0, sizeof *thread);
+
+    /* first create the idle thread */
+    result = tx_thread_create(thread,                    /* pointer to thread */
+                              "WolfSSL TestSuiteThread", /* name              */
+                              (entry_functionType)fun,   /* entry function    */
+                              (ULONG)args,               /* input             */
+                              (VOID*) TestSuiteThreadStack, /* pointer T-Stack*/
+                              sizeof(TestSuiteThreadStack), /* stack size     */
+                              2, 2,         /* priority and preempt threshold */
+                              1, TX_AUTO_START); /* time slice and auto start */
+    if (result != TX_SUCCESS)
+    {
+        printf("Ethernet Bypass Application: failed to create idle thread!\n");
+    }
+
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_create(thread, 0, fun, args);
     return;
 #elif defined(WOLFSSL_TIRTOS)
@@ -339,7 +369,9 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 
 void join_thread(THREAD_TYPE thread)
 {
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+#ifdef NETOS
+/* TODO: */
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_join(thread, 0);
 #elif defined(WOLFSSL_TIRTOS)
     while(1) {

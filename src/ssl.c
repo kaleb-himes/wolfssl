@@ -10898,8 +10898,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ssl->toInfoOn = 1;
             InitTimeoutInfo(&ssl->timeoutInfo);
 
+    #ifdef NETOS
+            if (gettimeofday(&startTime, NULL) < 0)
+    #else
             if (gettimeofday(&startTime, 0) < 0)
+    #endif
+            {
                 ERR_OUT(GETTIME_ERROR);
+            }
 
             /* use setitimer to simulate getitimer, init 0 myTimeout */
             myTimeout.it_interval.tv_sec  = 0;
@@ -10948,7 +10954,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         /* do callbacks */
         if (toCb) {
             if (oldTimerOn) {
+#ifdef NETOS
+                gettimeofday(&endTime, NULL);
+#else
                 gettimeofday(&endTime, 0);
+#endif
                 SubtractTimes(endTime, startTime, totalTime);
                 /* adjust old timer for elapsed time */
                 if (CmpTimes(totalTime, oldTimeout.it_value, <))

@@ -93,6 +93,30 @@
     #include <netdb.h>
     #include <pthread.h>
     #define SOCKET_T int
+#elif defined(NETOS)
+    #include <string.h>
+    #include <sys/types.h>
+    struct hostent {
+        char *h_name; /* official name of host */
+        char **h_aliases; /* alias list */
+        int h_addrtype; /* host address type */
+        int h_length; /* length of address */
+        char **h_addr_list; /* list of addresses from name server */
+    };
+    #ifndef WOLFSSL_LEANPSK
+        #include <unistd.h>
+        #include <sockapi.h>
+        #include <pthread.h>
+        #include <fcntl.h>
+        #ifdef TEST_IPV6
+            #include <netdb.h>
+        #endif
+    #endif
+    #define SOCKET_T int
+        #ifndef SO_NOSIGPIPE
+            #include <signal.h>  /* ignore SIGPIPE */
+        #endif
+    #define SNPRINTF snprintf
 #else
     #include <string.h>
     #include <sys/types.h>
@@ -200,7 +224,13 @@
     typedef void*         THREAD_TYPE;
     #define WOLFSSL_THREAD
 #else
-    #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+    #ifdef NETOS
+        typedef UINT          THREAD_RETURN;
+        typedef TX_THREAD     THREAD_TYPE;
+        #define WOLFSSL_THREAD
+        #define INFINITE TX_WAIT_FOREVER
+        #define WAIT_OBJECT_0 TX_NO_WAIT
+    #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
         #define WOLFSSL_THREAD
@@ -254,7 +284,31 @@
 #endif
 
 /* all certs relative to wolfSSL home directory now */
-#if defined(WOLFSSL_NO_CURRDIR) || defined(WOLFSSL_MDK_SHELL)
+#ifdef NETOS
+/* These defines specify the file system volume (mounted by the    */
+/* BSP) and root directory used by the FTP server                  */
+#define FS_VOLUME1                  "FLASH0"
+#define FS_VOLUME1_DIR              FS_VOLUME1 "/"
+
+#define caCertFile     FS_VOLUME1_DIR "certs/ca-cert.pem"
+#define eccCertFile    FS_VOLUME1_DIR "certs/server-ecc.pem"
+#define eccKeyFile     FS_VOLUME1_DIR "certs/ecc-key.pem"
+#define svrCertFile    FS_VOLUME1_DIR "certs/server-cert.pem"
+#define svrKeyFile     FS_VOLUME1_DIR "certs/server-key.pem"
+#define cliCertFile    FS_VOLUME1_DIR "certs/client-cert.pem"
+#define cliKeyFile     FS_VOLUME1_DIR "certs/client-key.pem"
+#define ntruCertFile   FS_VOLUME1_DIR "certs/ntru-cert.pem"
+#define ntruKeyFile    FS_VOLUME1_DIR "certs/ntru-key.raw"
+#define dhParamFile    FS_VOLUME1_DIR "certs/dh2048.pem"
+#define cliEccKeyFile  FS_VOLUME1_DIR "certs/ecc-client-key.pem"
+#define cliEccCertFile FS_VOLUME1_DIR "certs/client-ecc-cert.pem"
+#define caEccCertFile  FS_VOLUME1_DIR "certs/ca-ecc-cert/pem"
+#define crlPemDir      FS_VOLUME1_DIR "certs/crl"
+#ifdef HAVE_WNR
+    /* Whitewood netRandom default config file */
+    #define wnrConfig  "wnr-example.conf"
+#endif
+#elif defined(WOLFSSL_NO_CURRDIR) || defined(WOLFSSL_MDK_SHELL)
 #define caCertFile     "certs/ca-cert.pem"
 #define eccCertFile    "certs/server-ecc.pem"
 #define eccKeyFile     "certs/ecc-key.pem"
@@ -302,9 +356,13 @@ typedef struct tcp_ready {
     word16 ready;              /* predicate */
     word16 port;
     char*  srfName;     /* server ready file name */
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_mutex_t mutex;
-    pthread_cond_t  cond;
+#ifndef SINGLE_THREADED
+    #ifdef NETOS
+        TX_MUTEX mutex;
+    #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+        pthread_mutex_t mutex;
+        pthread_cond_t  cond;
+    #endif
 #endif
 } tcp_ready;
 
@@ -314,18 +372,26 @@ static INLINE void InitTcpReady(tcp_ready* ready)
     ready->ready = 0;
     ready->port = 0;
     ready->srfName = NULL;
-#ifdef SINGLE_THREADED
-#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_mutex_init(&ready->mutex, 0);
-    pthread_cond_init(&ready->cond, 0);
+#ifndef SINGLE_THREADED
+    #ifdef NETOS
+        tx_mutex_create(&ready->mutex, "wolfSSL Lock", TX_INHERIT);
+    #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
+        pthread_mutex_init(&ready->mutex, 0);
+        pthread_cond_init(&ready->cond, 0);
+    #endif
 #endif
 }
 
+#ifdef NETOS
+    struct hostent *gethostbyname(const char* name);
+#endif
 
 static INLINE void FreeTcpReady(tcp_ready* ready)
 {
 #ifdef SINGLE_THREADED
     (void)ready;
+#elif defined(NETOS)
+    tx_mutex_delete(&ready->mutex);
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_destroy(&ready->mutex);
     pthread_cond_destroy(&ready->cond);
@@ -371,8 +437,11 @@ void join_thread(THREAD_TYPE);
 #endif
 static const word16      wolfSSLPort = 11111;
 
-
+#if !defined(NETOS)
 static INLINE WC_NORETURN void err_sys(const char* msg)
+#else
+static INLINE void err_sys(const char* msg)
+#endif
 {
     printf("wolfSSL error: %s\n", msg);
 
@@ -386,7 +455,12 @@ static INLINE WC_NORETURN void err_sys(const char* msg)
     if (msg)
 #endif
     {
+#if defined(NETOS)
+        fflush(stdout) ;
+        tx_thread_sleep(100);
+#else
         exit(EXIT_FAILURE);
+#endif
     }
 }
 
@@ -963,7 +1037,17 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         }
     #endif
 
-#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
+#ifdef NETOS
+    /* signal ready to accept data */
+    {
+        tcp_ready* ready = args->signal;
+        (void)tx_mutex_get(&ready->mutex, TX_WAIT_FOREVER);
+        ready->ready = 1;
+        ready->port = port;
+        (void)tx_mutex_put(&ready->mutex);
+    }
+
+#elif defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
     /* signal ready to accept data */
     {
     tcp_ready* ready = args->signal;
@@ -1001,7 +1085,17 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if(do_listen) {
         tcp_listen(sockfd, &port, useAnyAddr, udp, sctp);
 
-    #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
+    #ifdef NETOS
+        /* signal ready to tcp_accept */
+        if (args)
+            ready = args->signal;
+        if (ready) {
+            (void)tx_mutex_get(&ready->mutex, TX_WAIT_FOREVER);
+            ready->ready = 1;
+            ready->port = port;
+            (void)tx_mutex_put(&ready->mutex);
+        }
+    #elif defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
         /* signal ready to tcp_accept */
         if (args)
             ready = args->signal;
@@ -1152,6 +1246,16 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 
 #elif defined(WOLFSSL_TIRTOS)
     extern double current_time();
+#elif defined(NETOS)
+
+    static INLINE double current_time(int reset)
+    {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        (void)reset;
+
+        return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+    }
 #else
 
 #if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_TCP_NET) && !defined(WOLFSSL_CHIBIOS)
@@ -1463,6 +1567,8 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
                 }
             #ifdef USE_WINDOWS_API
                 res = SetCurrentDirectoryA("..\\");
+            #elif defined(NETOS)
+                return 0;
             #else
                 res = chdir("../");
             #endif

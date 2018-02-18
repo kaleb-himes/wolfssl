@@ -4760,6 +4760,21 @@ exit_ed_verify:
 #elif defined(WOLFSSL_SGX)
     double current_time(int reset);
 
+#elif defined(NETOS)
+
+    #include <sys/time.h>
+
+    double current_time(int reset)
+    {
+        struct timeval tv;
+
+        (void)reset;
+
+        gettimeofday(&tv, NULL);
+
+        return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+    }
+
 #else
 
     #include <sys/time.h>

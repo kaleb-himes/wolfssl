@@ -5851,7 +5851,11 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     word32 LowResTimer(void)
     {
+  #ifdef NETOS
+        return (word32) time(NULL);
+  #else
         return (word32)time(0);
+  #endif
     }
 
 
@@ -16777,7 +16781,11 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                     XMEMCPY(info->packets[info->numberPackets].bufferValue,
                            data, sz);
             }
+        #ifdef NETOS
+            gettimeofday(&currTime, NULL);
+        #else
             gettimeofday(&currTime, 0);
+       #endif 
             info->packets[info->numberPackets].timestamp.tv_sec  =
                                                              currTime.tv_sec;
             info->packets[info->numberPackets].timestamp.tv_usec =
