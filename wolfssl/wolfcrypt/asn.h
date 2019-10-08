@@ -244,6 +244,10 @@ enum ECC_TYPES
 #endif
 #define ASN_NAME_MAX WC_ASN_NAME_MAX
 
+#ifndef WOLFSSL_MAX_PATH_LEN
+    #define WOLFSSL_MAX_PATH_LEN 127
+#endif
+
 enum Misc_ASN {
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
     MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
@@ -776,6 +780,10 @@ struct DecodedCert {
     int     extCrlInfoSz;            /* length of the URI                */
     byte    extSubjKeyId[KEYID_SIZE]; /* Subject Key ID                  */
     byte    extAuthKeyId[KEYID_SIZE]; /* Authority Key ID                */
+    byte    maxPathLen;               /* the maximum N length (default 127)
+                                       * allowed in wolfSSL see RFC 5280
+                                       * Section 6.1.1 (K) for description of
+                                       * max_path_length */
     byte    pathLength;              /* CA basic constraint path length  */
     word16  extKeyUsage;             /* Key usage bitfield               */
     byte    extExtKeyUsage;          /* Extended Key usage bitfield      */
@@ -873,6 +881,7 @@ struct DecodedCert {
     byte extNameConstraintSet : 1;
 #endif
     byte isCA : 1;                 /* CA basic constraint true */
+    byte maxPathLenSet : 1;        /* CA basic const max_path_length set */
     byte pathLengthSet : 1;        /* CA basic const path length set */
     byte weOwnAltNames : 1;        /* altNames haven't been given to copy */
     byte extKeyUsageSet : 1;
@@ -918,6 +927,11 @@ struct Signer {
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
     word16  keyUsage;
+    byte    maxPathLen;               /* the maximum N length (default 127)
+                                       * allowed in wolfSSL see RFC 5280
+                                       * Section 6.1.1 (K) for description of
+                                       * max_path_length */
+    byte    maxPathLenSet : 1;
     byte    pathLength;
     byte    pathLengthSet : 1;
     byte    selfSigned : 1;

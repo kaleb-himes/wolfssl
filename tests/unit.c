@@ -80,6 +80,7 @@ int unit_test(int argc, char** argv)
         goto exit;
     }
 
+#define SINGLE_THREADED // KH: REMOVE WHEN DONE TESTING
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 #ifndef SINGLE_THREADED
     if ( (ret = SuiteTest(argc, argv)) != 0){
@@ -88,6 +89,7 @@ int unit_test(int argc, char** argv)
     }
 #endif
 #endif
+#undef SINGLE_THREADED // KH: REMOVE WHEN DONE TESTING
 
     SrpTest();
 

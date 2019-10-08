@@ -2359,6 +2359,23 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load ca file, Please run from wolfSSL home dir");
         }
+{
+    char certA[] = "certs/test-pathlen/chainG-ICA4-pathlen5.pem";
+    char certB[] = "certs/test-pathlen/chainG-ICA7-pathlen100.pem";
+fprintf(stderr, "------------------------------------------------\n");
+        if (wolfSSL_CTX_load_verify_locations(ctx, certA, 0)
+                                                           != WOLFSSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx); ctx = NULL;
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
+        }
+fprintf(stderr, "------------------------------------------------\n");
+        if (wolfSSL_CTX_load_verify_locations(ctx, certB, 0)
+                                                           != WOLFSSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx); ctx = NULL;
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
+        }
+fprintf(stderr, "------------------------------------------------\n");
+}
     #else
         load_buffer(ctx, verifyCert, WOLFSSL_CA);
     #endif  /* !NO_FILESYSTEM */
