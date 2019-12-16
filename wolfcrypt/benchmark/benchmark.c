@@ -2537,7 +2537,10 @@ void bench_aesccm(void)
 {
     Aes    enc;
     double start;
-    int    ret, i, count;
+    int    ret, i, count, keySz, tests = 0;
+    const char* labels[] = { "AES-128-CCM-Enc", "AES-128-CCM-Dec",
+                             "AES-192-CCM-Enc", "AES-192-CCM-Dec",
+                             "AES-256-CCM-Enc", "AES-256-CCM-Dec" };
 
     DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -2545,33 +2548,49 @@ void bench_aesccm(void)
     XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
 
-    if ((ret = wc_AesCcmSetKey(&enc, bench_key, 16)) != 0) {
-        printf("wc_AesCcmSetKey failed, ret = %d\n", ret);
-        return;
+    while (tests < 6) {
+        switch (tests) {
+            case 0:
+                keySz = 16;
+                break;
+            case 2:
+                keySz = 24;
+                break;
+            case 4:
+                keySz = 32;
+                break;
+        }
+        tests+=2;
+
+        if ((ret = wc_AesCcmSetKey(&enc, bench_key, keySz)) != 0) {
+            printf("wc_AesCcmSetKey failed, ret = %d\n", ret);
+            return;
+        }
+
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                wc_AesCcmEncrypt(&enc, bench_cipher, bench_plain, BENCH_SIZE,
+                    bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
+                    bench_additional, aesAuthAddSz);
+            }
+            count += i;
+        } while (bench_stats_sym_check(start));
+        bench_stats_sym_finish(labels[tests-2], 0, count, bench_size, start,
+                               ret);
+
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                wc_AesCcmDecrypt(&enc, bench_plain, bench_cipher, BENCH_SIZE,
+                    bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
+                    bench_additional, aesAuthAddSz);
+            }
+            count += i;
+        } while (bench_stats_sym_check(start));
+        bench_stats_sym_finish(labels[tests-1], 0, count, bench_size, start,
+                               ret);
     }
-
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < numBlocks; i++) {
-            wc_AesCcmEncrypt(&enc, bench_cipher, bench_plain, BENCH_SIZE,
-                bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
-                bench_additional, aesAuthAddSz);
-        }
-        count += i;
-    } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("AES-CCM-Enc", 0, count, bench_size, start, ret);
-
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < numBlocks; i++) {
-            wc_AesCcmDecrypt(&enc, bench_plain, bench_cipher, BENCH_SIZE,
-                bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
-                bench_additional, aesAuthAddSz);
-        }
-        count += i;
-    } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("AES-CCM-Dec", 0, count, bench_size, start, ret);
-
 
     FREE_VAR(bench_additional, HEAP_HINT);
     FREE_VAR(bench_tag, HEAP_HINT);
