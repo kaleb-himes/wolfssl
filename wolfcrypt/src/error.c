@@ -515,6 +515,9 @@ const char* wc_GetErrorString(int error)
     case ASN_SELF_SIGNED_E:
         return "ASN self-signed certificate error";
 
+    case AES_CFB_CRYPT_E:
+        return "AES CFB Encrypt or Decrypt error";
+
     default:
         return "unknown error number";
 

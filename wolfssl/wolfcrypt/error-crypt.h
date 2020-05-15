@@ -229,8 +229,9 @@ enum {
     PSS_SALTLEN_RECOVER_E=-273,  /* PSS slat length not recoverable */
 
     ASN_SELF_SIGNED_E   = -274, /* ASN self-signed certificate error */
+    AES_CFB_CRYPT_E     = -275, /* AES CFB Encrypt/Decrypt error */
 
-    WC_LAST_E           = -274,  /* Update this to indicate last error */
+    WC_LAST_E           = -275,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

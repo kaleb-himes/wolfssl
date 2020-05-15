@@ -7690,24 +7690,28 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 static int wc_AesFeedbackEncrypt(Aes* aes, byte* out, const byte* in,
         word32 sz, byte mode)
 {
+    int ret = 0;
     byte*  tmp = NULL;
 #ifdef WOLFSSL_AES_CFB
     byte*  reg = NULL;
 #endif
 
     if (aes == NULL || out == NULL || in == NULL) {
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
     }
 
 #ifdef WOLFSSL_AES_CFB
-    if (aes->left && sz) {
+    if (aes->left && sz && !ret) {
         reg = (byte*)aes->reg + AES_BLOCK_SIZE - aes->left;
     }
+
+    if (reg == NULL)
+        ret = AES_CFB_CRYPT_E;
 #endif
 
     /* consume any unused bytes left in aes->tmp */
     tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
-    while (aes->left && sz) {
+    while (aes->left && sz && !ret) {
         *(out) = *(in++) ^ *(tmp++);
     #ifdef WOLFSSL_AES_CFB
         if (mode == AES_CFB_MODE) {
@@ -7719,7 +7723,7 @@ static int wc_AesFeedbackEncrypt(Aes* aes, byte* out, const byte* in,
         sz--;
     }
 
-    while (sz >= AES_BLOCK_SIZE) {
+    while (sz >= AES_BLOCK_SIZE && !ret) {
         /* Using aes->tmp here for inline case i.e. in=out */
         wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
     #ifdef WOLFSSL_AES_OFB
@@ -7741,7 +7745,7 @@ static int wc_AesFeedbackEncrypt(Aes* aes, byte* out, const byte* in,
     }
 
     /* encrypt left over data */
-    if (sz) {
+    if (sz && !ret) {
         wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
         aes->left = AES_BLOCK_SIZE;
         tmp = (byte*)aes->tmp;
@@ -7766,7 +7770,7 @@ static int wc_AesFeedbackEncrypt(Aes* aes, byte* out, const byte* in,
         }
     }
 
-    return 0;
+    return ret;
 }
 
 
