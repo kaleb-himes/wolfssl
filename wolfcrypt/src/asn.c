@@ -10848,6 +10848,12 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
                 ret = PemToDer(fileBuf, sz, CA_TYPE, &converted,  0, NULL,NULL);
             }
         #endif
+            /* This extra sanity check is to resolve a false-negative reported
+             * by gcc 10.1 -fanalyzer. Evaluated but could not identify a code
+             * path where PemToDer returned a zero value (ret == 0) and
+             * converted was un-allocated. */
+            if (converted == NULL)
+                ret = BUFFER_E;
 
             if (ret == 0) {
                 if (converted->length < (word32)derSz) {
