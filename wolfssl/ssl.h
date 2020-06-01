@@ -1335,6 +1335,7 @@ WOLFSSL_API unsigned int wolfSSL_X509_get_pathLength(WOLFSSL_X509*);
 WOLFSSL_API unsigned int wolfSSL_X509_get_keyUsage(WOLFSSL_X509*);
 WOLFSSL_API unsigned char* wolfSSL_X509_get_authorityKeyID(
                                             WOLFSSL_X509*, unsigned char*, int*);
+WOLFSSL_API int wolfSSL_X509_set_authorityKeyID(WOLFSSL_X509*, unsigned char*);
 WOLFSSL_API unsigned char* wolfSSL_X509_get_subjectKeyID(
                                             WOLFSSL_X509*, unsigned char*, int*);
 

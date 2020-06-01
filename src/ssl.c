@@ -20108,6 +20108,16 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     }
 
 
+    int wolfSSL_X509_set_authorityKeyID(WOLFSSL_X509* x509, byte* newAKID)
+    {
+        if (x509 == NULL || newAKID == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        x509->authKeyId = newAKID;
+
+        return WOLFSSL_SUCCESS;
+    }
+
     byte* wolfSSL_X509_get_subjectKeyID(WOLFSSL_X509* x509,
                                         byte* dst, int* dstLen)
     {
