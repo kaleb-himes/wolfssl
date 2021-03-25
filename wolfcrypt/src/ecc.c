@@ -8399,7 +8399,9 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     FREE_CURVE_SPECS();
 #endif /* WOLFSSL_ATECC508A */
 #else
-    err = WC_KEY_SIZE_E;
+    (void)partial;
+    (void)priv;
+    return WC_KEY_SIZE_E;
 #endif /* !WOLFSSL_SP_MATH */
     return err;
 }
