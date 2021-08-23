@@ -158,7 +158,8 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"")
     /* don't use file system for these tests, since ./certs dir isn't loaded */
     #undef  NO_FILESYSTEM
     #define NO_FILESYSTEM
-#elif defined(THREADX) && !defined(WOLFSSL_WICED) && !defined(THREADX_NO_DC_PRINTF)
+#elif defined(THREADX) && !defined(WOLFSSL_WICED) && \
+      !defined(THREADX_NO_DC_PRINTF) && !defined(NETOS)
     /* since just testing, use THREADX log printf instead */
     int dc_log_printf(char*, ...);
     #undef printf

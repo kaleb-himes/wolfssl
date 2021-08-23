@@ -135,6 +135,16 @@
         ret = ((a[3]<<24) + (a[2]<<16) + (a[1]<<8) + a[0]) ;
         return(ret) ;
     }
+#elif defined(NETOS)
+    #include <string.h>
+    #include <sys/types.h>
+    struct hostent {
+        char* h_name;        /* official name of host */
+        char** h_aliases;    /* alias list */
+        int h_addrtype;      /* host address type */
+        int h_length;        /* length of address */
+        char** h_addr_list;  /* list of addresses from the name server */
+    };
 #else
     #include <string.h>
     #include <sys/types.h>
@@ -266,6 +276,12 @@
         typedef void            THREAD_RETURN;
         typedef struct k_thread THREAD_TYPE;
         #define WOLFSSL_THREAD
+    #elif defined(NETOS)
+        typedef UINT        THREAD_RETURN;
+        typedef TX_THREAD   THREAD_TYPE;
+        #define WOLFSSL_THREAD
+        #define INFINITE TX_WAIT_FOREVER
+        #define WAIT_OBJECT_0 TX_NO_WAIT
     #else
         typedef unsigned int  THREAD_RETURN;
         typedef intptr_t      THREAD_TYPE;
@@ -357,6 +373,29 @@
     /* Whitewood netRandom default config file */
     #define wnrConfig     "wnr-example.conf"
 #endif
+#elif defined(NETOS)
+    /* These defines specify the file system volume and root directory used by
+     * the FTP server */
+    #define FS_VOLUME1     "FLASH0"
+    #define FS_VOLUME1_DIR FS_VOLUME1 "/"
+    #define caCertFile     FS_VOLUME1_DIR "certs/ca-cert.pem"
+    #define eccCertFile    FS_VOLUME1_DIR "certs/server-ecc.pem"
+    #define eccKeyFile     FS_VOLUME1_DIR "certs/ecc-key.pem"
+    #define svrCertFile    FS_VOLUME1_DIR "certs/server-cert.pem"
+    #define svrKeyFile     FS_VOLUME1_DIR "certs/server-key.pem"
+    #define cliCertFile    FS_VOLUME1_DIR "certs/client-cert.pem"
+    #define cliKeyFile     FS_VOLUME1_DIR "certs/client-key.pem"
+    #define ntruCertFile   FS_VOLUME1_DIR "certs/ntru-cert.pem"
+    #define ntruKeyFile    FS_VOLUME1_DIR "certs/ntru-key.raw"
+    #define dhParamFile    FS_VOLUME1_DIR "certs/dh2048.pem"
+    #define cliEccKeyFile  FS_VOLUME1_DIR "certs/ecc-client-key.pem"
+    #define cliEccCertFile FS_VOLUME1_DIR "certs/client-ecc-cert.pem"
+    #define caEccCertFile  FS_VOLUME1_DIR "certs/ca-ecc-cert/pem"
+    #define crlPemDir      FS_VOLUME1_DIR "certs/crl"
+    #ifdef HAVE_WNR
+        /* Whitewood netRandom default config file */
+        #define wnrConfig  "wnr-example.conf"
+    #endif
 #else
 #define caCertFile        "./certs/ca-cert.pem"
 #define eccCertFile       "./certs/server-ecc.pem"
@@ -401,6 +440,9 @@ typedef struct tcp_ready {
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
 #endif
+#ifdef NETOS
+    TX_MUTEX mutex;
+#endif
 } tcp_ready;
 
 
@@ -413,9 +455,14 @@ static WC_INLINE void InitTcpReady(tcp_ready* ready)
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_init(&ready->mutex, 0);
     pthread_cond_init(&ready->cond, 0);
+#elif defined(NETOS)
+    tx_mutex_create(&ready->mutex, "wolfSSL Lock", TX_INHERIT);
 #endif
 }
 
+#ifdef NETOS
+    struct hostent* gethostbyname(vonst char* name);
+#endif
 
 static WC_INLINE void FreeTcpReady(tcp_ready* ready)
 {
@@ -424,6 +471,8 @@ static WC_INLINE void FreeTcpReady(tcp_ready* ready)
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_destroy(&ready->mutex);
     pthread_cond_destroy(&ready->cond);
+#elif defined(NETOS)
+    tx_mutex_delete(&ready->mutex);
 #else
     (void)ready;
 #endif
@@ -450,8 +499,11 @@ typedef struct func_args {
     callback_functions *callbacks;
 } func_args;
 
-
-
+#ifdef NETOS
+    int dc_log_printf(char* format, ...);
+    #undef printf
+    #define printf dc_log_printf
+#endif
 
 void wait_tcp_ready(func_args*);
 
@@ -1169,6 +1221,8 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
 #elif defined(WOLFSSL_MDK_ARM) || defined (WOLFSSL_TIRTOS) ||\
                         defined(WOLFSSL_KEIL_TCP_NET) || defined(WOLFSSL_ZEPHYR)
     /* nothing to define */
+#elif defined(NETOS)
+    /* TODO: signal(SIGPIPE, SIG_IGN); */
 #else  /* no S_NOSIGPIPE */
     signal(SIGPIPE, SIG_IGN);
 #endif /* S_NOSIGPIPE */
@@ -1869,6 +1923,14 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     tcp_ready* ready = args->signal;
     ready->ready = 1;
     ready->port = port;
+#elif defined(NETOS)
+    {
+        tcp_ready* ready = args->signal;
+        (void)tx_mutex_get(&ready->mutex, TX_WAIT_FOREVER);
+        ready->ready = 1;
+        ready->port = port;
+        (void)tx_mutex_put(&ready->mutex);
+    }
 #else
     (void)port;
 #endif
@@ -1912,10 +1974,21 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
             ready->ready = 1;
             ready->port = port;
         }
+    #elif defined(NETOS)
+        /* signal ready to tcp_accept */
+        if (args)
+            ready = args->signal;
+        if (ready) {
+            (void)tx_mutex_get(&ready->mutex, TX_WAIT_FOREVER);
+            ready->ready = 1;
+            ready->port = port;
+            (void)tx_mutex_put(&ready->mutex);
+        }
     #endif
 
         if (ready_file) {
-        #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)
+        #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST) && \
+            !defined(NETOS)
             XFILE srf = NULL;
             if (args)
                 ready = args->signal;
@@ -2230,6 +2303,15 @@ static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
     extern double current_time();
 #elif defined(WOLFSSL_ZEPHYR)
     extern double current_time();
+#elif defined(NETOS)
+    static INLINE double current_time(int reset)
+    {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        (void)reset;
+
+        return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+    }
 #else
 
 #if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_TCP_NET) && !defined(WOLFSSL_CHIBIOS)
@@ -2286,7 +2368,8 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
 
 #if !defined(NO_CERTS)
     #if !defined(NO_FILESYSTEM) || \
-        (defined(NO_FILESYSTEM) && defined(FORCE_BUFFER_TEST))
+        (defined(NO_FILESYSTEM) && defined(FORCE_BUFFER_TEST)) && \
+        !defined(NETOS)
 
     /* reads file size, allocates buffer, reads into buffer, returns buffer */
     static WC_INLINE int load_file(const char* fname, byte** buf, size_t* bufLen)
@@ -2688,7 +2771,8 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
 
     static WC_INLINE int ChangeToWolfRoot(void)
     {
-        #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)
+        #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST) && \
+            !defined(NETOS)
             int depth, res;
             XFILE keyFile;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
@@ -2699,6 +2783,8 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
                 }
             #ifdef USE_WINDOWS_API
                 res = SetCurrentDirectoryA("..\\");
+            #elif defined(NETOS)
+                return 0;
             #else
                 res = chdir("../");
             #endif
