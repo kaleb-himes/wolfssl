@@ -422,10 +422,10 @@ void wait_tcp_ready(func_args* args)
 #elif defined(NETOS)
     (void)tx_mutex_get(&args->signal->mutex, TX_WAIT_FOREVER);
 
-    //TODO
-    //if (!args->signal->ready)
-        //pthread_cond_wait(&args->signal->cond, &args->signal->mutex);
-    args->signal->ready = 0; /* reset */
+    /* TODO:
+     * if (!args->signal->ready)
+     *    pthread_cond_wait(&args->signal->cond, &args->signal->mutex);
+     * args->signal->ready = 0; */
 
     (void)tx_mutex_put(&args->signal->mutex);
 
