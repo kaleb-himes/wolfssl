@@ -15,3 +15,4 @@ APP_WOLFCRYPTOBJS = $(NETOS_DIR)/src/$(WOLFSSL_ROOT)/objs/ns9210/32b/gnu/wolfcry
             $(NETOS_DIR)/src/$(WOLFSSL_ROOT)/objs/ns9210/32b/gnu/fips.o\
             $(NETOS_DIR)/src/$(WOLFSSL_ROOT)/objs/ns9210/32b/gnu/fips_test.o\
             $(NETOS_DIR)/src/$(WOLFSSL_ROOT)/objs/ns9210/32b/gnu/wolfcrypt_last.o
+
