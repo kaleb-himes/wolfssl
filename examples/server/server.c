@@ -2116,8 +2116,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if !defined(NO_CERTS)
     if ((!usePsk || usePskPlus) && !useAnon && !(loadCertKeyIntoSSLObj == 1)) {
     #ifdef NO_FILESYSTEM
-        if (wolfSSL_CTX_use_certificate_chain_buffer(ctx, server_cert_der_2048,
-            sizeof_server_cert_der_2048) != WOLFSSL_SUCCESS)
+        if (wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,
+                server_cert_der_2048, sizeof_server_cert_der_2048,
+                WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server cert buffer");
     #elif !defined(TEST_LOAD_BUFFER)
         if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
@@ -2417,8 +2418,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if !defined(NO_CERTS)
     if ((!usePsk || usePskPlus) && !useAnon && loadCertKeyIntoSSLObj) {
     #ifdef NO_FILESYSTEM
-        if (wolfSSL_use_certificate_chain_buffer(ssl, server_cert_der_2048,
-            sizeof_server_cert_der_2048) != WOLFSSL_SUCCESS)
+        if (wolfSSL_use_certificate_chain_buffer_format(ssl,
+                server_cert_der_2048, sizeof_server_cert_der_2048,
+                WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server cert buffer");
     #elif !defined(TEST_LOAD_BUFFER)
         if (SSL_use_certificate_chain_file(ssl, ourCert)
