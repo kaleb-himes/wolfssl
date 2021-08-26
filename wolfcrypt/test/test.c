@@ -917,7 +917,8 @@ initDefaultName();
 #endif
 
 #ifndef NO_HMAC
-    #if !defined(NO_MD5) && !(defined(HAVE_FIPS) && defined(FIPS_VERSION) && (FIPS_VERSION >= 5))
+    #if !defined(NO_MD5) && !(defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) \
+                              && (HAVE_FIPS_VERSION >= 5))
         if ( (ret = hmac_md5_test()) != 0)
             return err_sys("HMAC-MD5 test failed!\n", ret);
         else
@@ -3852,7 +3853,9 @@ WOLFSSL_TEST_SUBROUTINE int hash_test(void)
 }
 #endif /* !NO_HASH_WRAPPER */
 
-#if !defined(NO_HMAC) && !defined(NO_MD5) && !(defined(HAVE_FIPS) && defined(FIPS_VERSION) && (FIPS_VERSION >= 5))
+#if !defined(NO_HMAC) && !defined(NO_MD5) && !(defined(HAVE_FIPS) && \
+                                               defined(HAVE_FIPS_VERSION) && \
+                                               (HAVE_FIPS_VERSION >= 5))
 WOLFSSL_TEST_SUBROUTINE int hmac_md5_test(void)
 {
     Hmac hmac;
@@ -3932,7 +3935,7 @@ WOLFSSL_TEST_SUBROUTINE int hmac_md5_test(void)
 
     return 0;
 }
-#endif /* !NO_HMAC && !NO_MD5 && !HAVE_FIPS */
+#endif /* !NO_HMAC && !NO_MD5 && (!HAVE_FIPS || (HAVE_FIPS_VERSION < 5)) */
 
 #if !defined(NO_HMAC) && !defined(NO_SHA)
 WOLFSSL_TEST_SUBROUTINE int hmac_sha_test(void)
