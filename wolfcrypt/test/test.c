@@ -312,9 +312,9 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"")
 #ifdef OPENSSL_EXTRA
   #ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/evp.h>
+    #include <wolfssl/openssl/hmac.h>
   #endif
     #include <wolfssl/openssl/rand.h>
-    #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/aes.h>
     #include <wolfssl/openssl/des.h>
 #endif
@@ -402,7 +402,7 @@ WOLFSSL_TEST_SUBROUTINE int  hmac_sha256_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha384_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha512_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha3_test(void);
-WOLFSSL_TEST_SUBROUTINE int  wc_hkdf_test(void);
+/* WOLFSSL_TEST_SUBROUTINE */ static int  hkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  sshkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  x963kdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  arc4_test(void);
@@ -970,7 +970,7 @@ initDefaultName();
     #endif
 
     #ifdef HAVE_HKDF
-        if ( (ret = wc_hkdf_test()) != 0)
+        if ( (ret = hkdf_test()) != 0)
             return err_sys("HMAC-KDF    test failed!\n", ret);
         else
             test_pass("HMAC-KDF    test passed!\n");
@@ -6550,7 +6550,8 @@ WOLFSSL_TEST_SUBROUTINE int des3_test(void)
 
 #if defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_CFB) || \
     defined(WOLFSSL_AES_XTS)
-#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
+    && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 /* pass in the function, key, iv, plain text and expected and this function
  * tests that the encryption and decryption is successful */
 static int EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
@@ -6754,7 +6755,8 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_128
         /* 128 key size test */
-    #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
+        && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         ret = EVP_test(EVP_aes_128_ofb(), key2, iv2, plain2, sizeof(plain2),
                 cipher2, sizeof(cipher2));
         if (ret != 0) {
@@ -6792,7 +6794,8 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_192
         /* 192 key size test */
-    #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
+        && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         ret = EVP_test(EVP_aes_192_ofb(), key3, iv3, plain3, sizeof(plain3),
                 cipher3, sizeof(cipher3));
         if (ret != 0) {
@@ -6830,7 +6833,8 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_256
         /* 256 key size test */
-    #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
+        && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         ret = EVP_test(EVP_aes_256_ofb(), key1, iv1, plain1, sizeof(plain1),
                 cipher1, sizeof(cipher1));
         if (ret != 0) {
@@ -7144,7 +7148,8 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_128
         /* 128 key tests */
-    #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
+        && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         ret = EVP_test(EVP_aes_128_cfb128(), key1, iv, msg1, sizeof(msg1),
                 cipher1, sizeof(cipher1));
         if (ret != 0) {
@@ -7192,7 +7197,8 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_192
         /* 192 key size test */
-    #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
+        && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         ret = EVP_test(EVP_aes_192_cfb128(), key2, iv, msg2, sizeof(msg2),
                 cipher2, sizeof(cipher2));
         if (ret != 0) {
@@ -7230,7 +7236,8 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_256
         /* 256 key size test */
-    #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
+        && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         ret = EVP_test(EVP_aes_256_cfb128(), key3, iv, msg3, sizeof(msg3),
                 cipher3, sizeof(cipher3));
         if (ret != 0) {
@@ -7470,11 +7477,13 @@ EVP_TEST_END:
         if (ret != 0)
             ERROR_OUT(-5213, out);
 
+    #ifndef WOLFCRYPT_ONLY
         ret = EVP_test(EVP_aes_128_cfb1(), key1, iv, msg1, sizeof(msg1),
                 cipher, sizeof(msg1));
         if (ret != 0) {
             goto out;
         }
+    #endif
     #endif
 #endif /* WOLFSSL_AES_128 */
 #ifdef WOLFSSL_AES_192
@@ -7501,11 +7510,13 @@ EVP_TEST_END:
         if (ret != 0)
             ERROR_OUT(-5218, out);
 
+        #ifndef WOLFCRYPT_ONLY
         ret = EVP_test(EVP_aes_192_cfb1(), key2, iv2, msg2, sizeof(msg2),
                 cipher, sizeof(msg2));
         if (ret != 0) {
             goto out;
         }
+        #endif
     #endif
 #endif /* WOLFSSL_AES_192 */
 
@@ -7533,11 +7544,13 @@ EVP_TEST_END:
         if (ret != 0)
             ERROR_OUT(-5223, out);
 
+        #ifndef WOLFCRYPT_ONLY
         ret = EVP_test(EVP_aes_256_cfb1(), key3, iv3, msg3, sizeof(msg3),
                 cipher, sizeof(msg3));
         if (ret != 0) {
             goto out;
         }
+        #endif
     #endif
 
   out:
@@ -7676,7 +7689,7 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_128
         /* 128 key tests */
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
         ret = EVP_test(EVP_aes_128_cfb8(), key1, iv, msg1, sizeof(msg1),
                 cipher1, sizeof(cipher1));
         if (ret != 0) {
@@ -7722,7 +7735,7 @@ EVP_TEST_END:
             ERROR_OUT(-5233, out);
         if (XMEMCMP(cipher, cipher2, sizeof(msg2)) != 0)
             ERROR_OUT(-5234, out);
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
         ret = EVP_test(EVP_aes_192_cfb8(), key2, iv2, msg2, sizeof(msg2),
                 cipher2, sizeof(msg2));
         if (ret != 0) {
@@ -7745,7 +7758,7 @@ EVP_TEST_END:
         if (XMEMCMP(cipher, cipher3, sizeof(cipher3)) != 0)
             ERROR_OUT(-5237, out);
 
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
         ret = EVP_test(EVP_aes_256_cfb8(), key3, iv3, msg3, sizeof(msg3),
                 cipher3, sizeof(msg3));
         if (ret != 0) {
@@ -7984,7 +7997,8 @@ static int aes_xts_128_test(void)
         ERROR_OUT(-5417, out);
 #endif
 
-#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
+    && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     ret = EVP_test(EVP_aes_128_xts(), k2, i2, p2, sizeof(p2), c2, sizeof(c2));
     if (ret != 0) {
         printf("EVP_aes_128_xts failed!\n");
@@ -8186,7 +8200,8 @@ static int aes_xts_256_test(void)
         ERROR_OUT(-5515, out);
 #endif
 
-#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) \
+    && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     ret = EVP_test(EVP_aes_256_xts(), k2, i2, p2, sizeof(p2), c2, sizeof(c2));
     if (ret != 0) {
         printf("EVP_aes_256_xts failed\n");
@@ -20292,7 +20307,7 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
 
-WOLFSSL_TEST_SUBROUTINE int wc_hkdf_test(void)
+/* WOLFSSL_TEST_SUBROUTINE */ static int hkdf_test(void)
 {
     int ret = 0;
 
