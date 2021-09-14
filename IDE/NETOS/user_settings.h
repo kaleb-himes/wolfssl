@@ -104,194 +104,195 @@ extern "C" {
 /* RSA */
 #undef NO_RSA
 #if 1
-#ifdef USE_FAST_MATH
-/* Maximum math bits (Max RSA key bits * 2) */
-#undef FP_MAX_BITS
-#define FP_MAX_BITS 8192
-#endif
+    #ifdef USE_FAST_MATH
+        /* Maximum math bits (Max RSA key bits * 2) */
+        #undef FP_MAX_BITS
+        #define FP_MAX_BITS 8192
+    #endif
 
-/* half as much memory but twice as slow */
-#undef RSA_LOW_MEM
-//#define RSA_LOW_MEM
+    /* half as much memory but twice as slow */
+    #undef RSA_LOW_MEM
+    //#define RSA_LOW_MEM
 
-/* Enables blinding mode, to prevent timing attacks */
-#if 0
-    #undef WC_RSA_BLINDING
-    #define WC_RSA_BLINDING
+    /* Enables blinding mode, to prevent timing attacks */
+    #if 0
+        #undef WC_RSA_BLINDING
+        #define WC_RSA_BLINDING
+    #else
+        #undef WC_NO_HARDEN
+        #define WC_NO_HARDEN
+    #endif
+
+    /* RSA PSS Support */
+    #if 1
+        #define WC_RSA_PSS
+    #endif
+
+    #if 1
+        #define WC_RSA_NO_PADDING
+    #endif
 #else
-    #undef WC_NO_HARDEN
-    #define WC_NO_HARDEN
-#endif
-
-/* RSA PSS Support */
-#if 1
-#define WC_RSA_PSS
-#endif
-
-#if 1
-#define WC_RSA_NO_PADDING
-#endif
-#else
-#define NO_RSA
+    #define NO_RSA
 #endif
 
 /* ECC */
 #undef HAVE_ECC
 #if 1
-#define HAVE_ECC
+    #define HAVE_ECC
 
-/* Manually define enabled curves */
-#undef ECC_USER_CURVES
-//#define ECC_USER_CURVES
+    /* Manually define enabled curves */
+    #undef ECC_USER_CURVES
+    //#define ECC_USER_CURVES
 
-#ifdef ECC_USER_CURVES
-/* Manual Curve Selection */
-//#define HAVE_ECC192
-//#define HAVE_ECC224
-#undef NO_ECC256
-//#define HAVE_ECC384
-//#define HAVE_ECC521
-#endif
+    #ifdef ECC_USER_CURVES
+    /* Manual Curve Selection */
+    //#define HAVE_ECC192
+    //#define HAVE_ECC224
+    #undef NO_ECC256
+    //#define HAVE_ECC384
+    //#define HAVE_ECC521
+    #endif
 
-/* Fixed point cache (speeds repeated operations against same private key) */
-#undef FP_ECC
-//#define FP_ECC
-#ifdef FP_ECC
-    /* Bits / Entries */
-    #undef FP_ENTRIES
-    #define FP_ENTRIES 2
-    #undef FP_LUT
-    #define FP_LUT 4
-#endif
+    /* Fixed point cache (speeds repeated operations against same private key) */
+    #undef FP_ECC
+    //#define FP_ECC
+    #ifdef FP_ECC
+        /* Bits / Entries */
+        #undef FP_ENTRIES
+        #define FP_ENTRIES 2
+        #undef FP_LUT
+        #define FP_LUT 4
+    #endif
 
-/* Optional ECC calculation method */
-/* Note: doubles heap usage, but slightly faster */
-#undef ECC_SHAMIR
-#define ECC_SHAMIR
+    /* Optional ECC calculation method */
+    /* Note: doubles heap usage, but slightly faster */
+    #undef ECC_SHAMIR
+    #define ECC_SHAMIR
 
-/* Reduces heap usage, but slower */
-#undef ECC_TIMING_RESISTANT
-#define ECC_TIMING_RESISTANT
+    /* Reduces heap usage, but slower */
+    #undef ECC_TIMING_RESISTANT
+    #define ECC_TIMING_RESISTANT
 
-#ifdef HAVE_FIPS
-    #undef HAVE_ECC_CDH
-    #define HAVE_ECC_CDH /* Enable cofactor support */
+    #ifdef HAVE_FIPS
+        #undef HAVE_ECC_CDH
+        #define HAVE_ECC_CDH /* Enable cofactor support */
 
-    #undef NO_STRICT_ECDSA_LEN
-    #define NO_STRICT_ECDSA_LEN /* Do not force fixed len w/ FIPS */
+        #undef NO_STRICT_ECDSA_LEN
+        #define NO_STRICT_ECDSA_LEN /* Do not force fixed len w/ FIPS */
 
-    #undef WOLFSSL_VALIDATE_ECC_IMPORT
-    #define WOLFSSL_VALIDATE_ECC_IMPORT /* Validate import */
-#endif
+        #undef WOLFSSL_VALIDATE_ECC_IMPORT
+        #define WOLFSSL_VALIDATE_ECC_IMPORT /* Validate import */
+    #endif
 
-/* Compressed Key Support */
-#undef HAVE_COMP_KEY
-//#define HAVE_COMP_KEY
+    /* Compressed Key Support */
+    #undef HAVE_COMP_KEY
+    //#define HAVE_COMP_KEY
 
-/* Use alternate ECC size for ECC math */
-#ifdef USE_FAST_MATH
-    /* MAX ECC BITS = ROUND8(MAX ECC) * 2 */
-    #ifdef NO_RSA
-        /* Custom fastmath size if not using RSA */
-        #undef FP_MAX_BITS
-        #define FP_MAX_BITS (256 * 2)
-    #else
-        #undef ALT_ECC_SIZE
-        #define ALT_ECC_SIZE
-        /* wolfSSL will compute the FP_MAX_BITS_ECC, but it can be overriden */
-        //#undef FP_MAX_BITS_ECC
-        //#define FP_MAX_BITS_ECC (256 * 2)
-#endif
+    /* Use alternate ECC size for ECC math */
+    #ifdef USE_FAST_MATH
+        /* MAX ECC BITS = ROUND8(MAX ECC) * 2 */
+        #ifdef NO_RSA
+            /* Custom fastmath size if not using RSA */
+            #undef FP_MAX_BITS
+            #define FP_MAX_BITS (256 * 2)
+        #else
+            #undef ALT_ECC_SIZE
+            #define ALT_ECC_SIZE
+            /* wolfSSL will compute the FP_MAX_BITS_ECC, but it can be overriden */
+            //#undef FP_MAX_BITS_ECC
+            //#define FP_MAX_BITS_ECC (256 * 2)
+        #endif
 
-/* Speedups specific to curve */
-#ifndef NO_ECC256
-#undef TFM_ECC256
-#define TFM_ECC256
-#endif
-#endif
+        /* Speedups specific to curve */
+        #ifndef NO_ECC256
+            #undef TFM_ECC256
+            #define TFM_ECC256
+        #endif
+    #endif
 #endif
 
 /* DH */
 #undef NO_DH
 #if 1
-/* Use table for DH instead of -lm (math) lib dependency */
-#if 1
-#define WOLFSSL_DH_CONST
-#define HAVE_FFDHE_2048
-#define HAVE_FFDHE_4096
-//#define HAVE_FFDHE_6144
-//#define HAVE_FFDHE_8192
-#endif
+    /* Use table for DH instead of -lm (math) lib dependency */
+    #if 1
+        #define WOLFSSL_DH_CONST
+        #define HAVE_FFDHE_2048
+        #define HAVE_FFDHE_4096
+        //#define HAVE_FFDHE_6144
+        //#define HAVE_FFDHE_8192
+    #endif
 
-#ifdef HAVE_FIPS
-#define WOLFSSL_VALIDATE_FFC_IMPORT
-#define HAVE_FFDHE_Q
-#endif
+    #ifdef HAVE_FIPS
+        #define WOLFSSL_VALIDATE_FFC_IMPORT
+        #define HAVE_FFDHE_Q
+    #endif
 #else
-#define NO_DH
+    #define NO_DH
 #endif
 
 
 /* AES */
 #undef NO_AES
 #if 1
-#undef HAVE_AES_CBC
-#define HAVE_AES_CBC
+    #undef HAVE_AES_CBC
+    #define HAVE_AES_CBC
 
-#undef HAVE_AESGCM
-#define HAVE_AESGCM
+    #undef HAVE_AESGCM
+    #define HAVE_AESGCM
 
-/* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
-// #define GCM_SMALL
-// #define GCM_WORD32
-#define GCM_TABLE
+    /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
+    // #define GCM_SMALL
+    // #define GCM_WORD32
+    #define GCM_TABLE
 
-#undef WOLFSSL_AES_DIRECT
-#define WOLFSSL_AES_DIRECT
+    #undef WOLFSSL_AES_DIRECT
+    #define WOLFSSL_AES_DIRECT
 
-#undef HAVE_AES_ECB
-#define HAVE_AES_ECB
+    #undef HAVE_AES_ECB
+    #define HAVE_AES_ECB
 
-#undef WOLFSSL_AES_COUNTER
-#define WOLFSSL_AES_COUNTER
+    #undef WOLFSSL_AES_COUNTER
+    #define WOLFSSL_AES_COUNTER
 
-#undef HAVE_AESCCM
-#define HAVE_AESCCM
+    #undef HAVE_AESCCM
+    #define HAVE_AESCCM
 #else
-#define NO_AES
+    #define NO_AES
 #endif
 
 
 /* DES3 */
 #undef NO_DES3
 #if 1
+    /* No change */
 #else
-#define NO_DES3
+    #define NO_DES3
 #endif
 
 /* ChaCha20 / Poly1305 */
 #undef HAVE_CHACHA
 #undef HAVE_POLY1305
 #if 0
-#define HAVE_CHACHA
-#define HAVE_POLY1305
+    #define HAVE_CHACHA
+    #define HAVE_POLY1305
 
-/* Needed for Poly1305 */
-#undef HAVE_ONE_TIME_AUTH
-#define HAVE_ONE_TIME_AUTH
+    /* Needed for Poly1305 */
+    #undef HAVE_ONE_TIME_AUTH
+    #define HAVE_ONE_TIME_AUTH
 #endif
 
 /* Ed25519 / Curve25519 */
 #undef HAVE_CURVE25519
 #undef HAVE_ED25519
 #if 0
-#define HAVE_CURVE25519
-#define HAVE_ED25519 /* ED25519 Requires SHA512 */
+    #define HAVE_CURVE25519
+    #define HAVE_ED25519 /* ED25519 Requires SHA512 */
 
-/* Optionally use small math (less flash usage, but much slower) */
-#if 1
-#define CURVED25519_SMALL
-#endif
+    /* Optionally use small math (less flash usage, but much slower) */
+    #if 1
+        #define CURVED25519_SMALL
+    #endif
 #endif
 
 
@@ -301,65 +302,65 @@ extern "C" {
 /* Sha */
 #undef NO_SHA
 #if 1
-/* 1k smaller, but 25% slower */
-//#define USE_SLOW_SHA
+    /* 1k smaller, but 25% slower */
+    //#define USE_SLOW_SHA
 #else
-#define NO_SHA
+    #define NO_SHA
 #endif
 
 /* Sha256 */
 #undef NO_SHA256
 #if 1
-/* not unrolled - ~2k smaller and ~25% slower */
-//#define USE_SLOW_SHA256
+    /* not unrolled - ~2k smaller and ~25% slower */
+    //#define USE_SLOW_SHA256
 
-/* Sha224 */
-#if 1
-#define WOLFSSL_SHA224
-#endif
+    /* Sha224 */
+    #if 1
+        #define WOLFSSL_SHA224
+    #endif
 #else
-#define NO_SHA256
+    #define NO_SHA256
 #endif
 
 /* Sha512 */
 #undef WOLFSSL_SHA512
 #if 1
-#define WOLFSSL_SHA512
+    #define WOLFSSL_SHA512
 
-/* Sha384 */
-#undef WOLFSSL_SHA384
-#if 1
-#define WOLFSSL_SHA384
-#endif
+    /* Sha384 */
+    #undef WOLFSSL_SHA384
+    #if 1
+        #define WOLFSSL_SHA384
+    #endif
 
-/* over twice as small, but 50% slower */
-//#define USE_SLOW_SHA512
+    /* over twice as small, but 50% slower */
+    //#define USE_SLOW_SHA512
 #endif
 
 /* Sha3 */
 #undef WOLFSSL_SHA3
 #if 1
-#define WOLFSSL_SHA3
+    #define WOLFSSL_SHA3
 #endif
 
 /* MD5 */
 #undef NO_MD5
 #if 1
-
+    /* No change */
 #else
-#define NO_MD5
+    #define NO_MD5
 #endif
 
 /* HKDF */
 #undef HAVE_HKDF
 #if 1
-#define HAVE_HKDF
+    #define HAVE_HKDF
 #endif
 
 /* CMAC */
 #undef WOLFSSL_CMAC
 #if 1
-#define WOLFSSL_CMAC
+    #define WOLFSSL_CMAC
 #endif
 
 
@@ -390,11 +391,11 @@ extern "C" {
 #undef DEBUG_WOLFSSL
 #undef NO_ERROR_STRINGS
 #if 0
-#define DEBUG_WOLFSSL
+    #define DEBUG_WOLFSSL
 #else
-#if 0
-#define NO_ERROR_STRINGS
-#endif
+    #if 0
+        #define NO_ERROR_STRINGS
+    #endif
 #endif
 
 
@@ -404,53 +405,53 @@ extern "C" {
 
 /* Override Memory API's */
 #if 0
-#undef XMALLOC_OVERRIDE
-#define XMALLOC_OVERRIDE
+    #undef XMALLOC_OVERRIDE
+    #define XMALLOC_OVERRIDE
 
-/* prototypes for user heap override functions */
-/* Note: Realloc only required for normal math */
-#include <stddef.h> /* for size_t */
-extern void *myMalloc(size_t n, void* heap, int type);
-extern void myFree(void *p, void* heap, int type);
-extern void *myRealloc(void *p, size_t n, void* heap, int type);
+    /* prototypes for user heap override functions */
+    /* Note: Realloc only required for normal math */
+    #include <stddef.h> /* for size_t */
+    extern void *myMalloc(size_t n, void* heap, int type);
+    extern void myFree(void *p, void* heap, int type);
+    extern void *myRealloc(void *p, size_t n, void* heap, int type);
 
-#define XMALLOC(n, h, t) myMalloc(n, h, t)
-#define XFREE(p, h, t) myFree(p, h, t)
-#define XREALLOC(p, n, h, t) myRealloc(p, n, h, t)
+    #define XMALLOC(n, h, t) myMalloc(n, h, t)
+    #define XFREE(p, h, t) myFree(p, h, t)
+    #define XREALLOC(p, n, h, t) myRealloc(p, n, h, t)
 #endif
 
 #if 0
-/* Static memory requires fast math */
-#define WOLFSSL_STATIC_MEMORY
+    /* Static memory requires fast math */
+    #define WOLFSSL_STATIC_MEMORY
 
-/* Disable fallback malloc/free */
-#define WOLFSSL_NO_MALLOC
-#if 1
-#define WOLFSSL_MALLOC_CHECK /* trap malloc failure */
-#endif
+    /* Disable fallback malloc/free */
+    #define WOLFSSL_NO_MALLOC
+    #if 1
+    #define WOLFSSL_MALLOC_CHECK /* trap malloc failure */
+    #endif
 #endif
 
 /* Memory callbacks */
 #if 1
-#undef USE_WOLFSSL_MEMORY
-#define USE_WOLFSSL_MEMORY
+    #undef USE_WOLFSSL_MEMORY
+    #define USE_WOLFSSL_MEMORY
 
-/* Use this to measure / print heap usage */
-#if 0
-#undef WOLFSSL_TRACK_MEMORY
-// #define WOLFSSL_TRACK_MEMORY
+    /* Use this to measure / print heap usage */
+    #if 0
+        #undef WOLFSSL_TRACK_MEMORY
+        // #define WOLFSSL_TRACK_MEMORY
 
-#undef WOLFSSL_DEBUG_MEMORY
-//#define WOLFSSL_DEBUG_MEMORY
+        #undef WOLFSSL_DEBUG_MEMORY
+        //#define WOLFSSL_DEBUG_MEMORY
 
-#undef WOLFSSL_DEBUG_MEMORY_PRINT
-//#define WOLFSSL_DEBUG_MEMORY_PRINT
-#endif
+        #undef WOLFSSL_DEBUG_MEMORY_PRINT
+        //#define WOLFSSL_DEBUG_MEMORY_PRINT
+    #endif
 #else
-#ifndef WOLFSSL_STATIC_MEMORY
-#define NO_WOLFSSL_MEMORY
-/* Otherwise we will use stdlib malloc, free and realloc */
-#endif
+    #ifndef WOLFSSL_STATIC_MEMORY
+        #define NO_WOLFSSL_MEMORY
+        /* Otherwise we will use stdlib malloc, free and realloc */
+    #endif
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -460,9 +461,9 @@ extern void *myRealloc(void *p, size_t n, void* heap, int type);
 /* Seed Source */
 /* Seed Source */
 #if 1
-extern int my_rng_generate_seed(unsigned char* output, int sz);
-#undef CUSTOM_RAND_GENERATE_SEED
-#define CUSTOM_RAND_GENERATE_SEED my_rng_generate_seed
+    extern int my_rng_generate_seed(unsigned char* output, int sz);
+    #undef CUSTOM_RAND_GENERATE_SEED
+    #define CUSTOM_RAND_GENERATE_SEED my_rng_generate_seed
 #endif
 
 /* NETOS */
@@ -474,19 +475,19 @@ extern int my_rng_generate_seed(unsigned char* output, int sz);
 
 /* Choose RNG method */
 #if 1
-/* Use built-in P-RNG (SHA256 based) with HW RNG */
-/* P-RNG + HW RNG (P-RNG is ~8K) */
-//#define WOLFSSL_GENSEED_FORTEST
-#undef HAVE_HASHDRBG
-#define HAVE_HASHDRBG
+    /* Use built-in P-RNG (SHA256 based) with HW RNG */
+    /* P-RNG + HW RNG (P-RNG is ~8K) */
+    //#define WOLFSSL_GENSEED_FORTEST
+    #undef HAVE_HASHDRBG
+    #define HAVE_HASHDRBG
 #else
-#undef WC_NO_HASHDRBG
-#define WC_NO_HASHDRBG
+    #undef WC_NO_HASHDRBG
+    #define WC_NO_HASHDRBG
 
-/* Bypass P-RNG and use only HW RNG */
-extern int my_rng_gen_block(unsigned char* output, unsigned int sz);
-#undef CUSTOM_RAND_GENERATE_BLOCK
-#define CUSTOM_RAND_GENERATE_BLOCK my_rng_gen_block
+    /* Bypass P-RNG and use only HW RNG */
+    extern int my_rng_gen_block(unsigned char* output, unsigned int sz);
+    #undef CUSTOM_RAND_GENERATE_BLOCK
+    #define CUSTOM_RAND_GENERATE_BLOCK my_rng_gen_block
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -494,7 +495,7 @@ extern int my_rng_gen_block(unsigned char* output, unsigned int sz);
 /* ------------------------------------------------------------------------- */
 #undef WOLFSSL_TLS13
 #if 0
-#define WOLFSSL_TLS13
+    #define WOLFSSL_TLS13
 #endif
 
 #undef WOLFSSL_KEY_GEN
@@ -503,7 +504,7 @@ extern int my_rng_gen_block(unsigned char* output, unsigned int sz);
 #endif
 
 #if defined(HAVE_FIPS) && !defined(WOLFSSL_KEY_GEN)
-#define WOLFSSL_OLD_PRIME_CHECK
+    #define WOLFSSL_OLD_PRIME_CHECK
 #endif
 
 #undef KEEP_PEER_CERT
@@ -523,9 +524,9 @@ extern int my_rng_gen_block(unsigned char* output, unsigned int sz);
 
 /* TLS Session Cache */
 #if 0
-#define SMALL_SESSION_CACHE
+    #define SMALL_SESSION_CACHE
 #else
-#define NO_SESSION_CACHE
+    #define NO_SESSION_CACHE
 #endif
 
 
@@ -605,20 +606,22 @@ extern int my_rng_gen_block(unsigned char* output, unsigned int sz);
 //#define NO_SIG_WRAPPER
 
 /* ACVP Testing ONLY specific settings */
-#undef USE_NORMAL_PRINTF
-#define USE_NORMAL_PRINTF
+#if 0
+    #undef USE_NORMAL_PRINTF
+    #define USE_NORMAL_PRINTF
 
-#undef USE_UART_READ_LINE
-#define USE_UART_READ_LINE
+    #undef USE_UART_READ_LINE
+    #define USE_UART_READ_LINE
 
-#undef USE_SMALL_MONTE
-#define USE_SMALL_MONTE
+    #undef USE_SMALL_MONTE
+    #define USE_SMALL_MONTE
 
-#undef WOLFSSL_PUBLIC_MP
-#define WOLFSSL_PUBLIC_MP
+    #undef WOLFSSL_PUBLIC_MP
+    #define WOLFSSL_PUBLIC_MP
 
-#undef HAVE_FORCE_FIPS_FAILURE
-#define HAVE_FORCE_FIPS_FAILURE
+    #undef HAVE_FORCE_FIPS_FAILURE
+    #define HAVE_FORCE_FIPS_FAILURE
+#endif
 
 #ifdef __cplusplus
 }
