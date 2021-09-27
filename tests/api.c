@@ -43849,7 +43849,8 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
 
 static void test_wolfSSL_EVP_PBE_scrypt(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 5))
 #if !defined(NO_PWDBASED) &&  !defined(NO_SHA256)
 
     int ret;
