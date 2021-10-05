@@ -109,9 +109,15 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif
 
+    /* helpers for stringifying the expanded value of a macro argument rather
+     * than its literal text:
+     */
+    #define _WC_STRINGIFY_L2(str) #str
+    #define WC_STRINGIFY(str) _WC_STRINGIFY_L2(str)
+
     /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
     #if defined(_MSC_VER) || defined(HAVE_LIMITS_H)
-        /* make sure both SIZEOF_LONG_LONG and SIZEOF_LONG are set, 
+        /* make sure both SIZEOF_LONG_LONG and SIZEOF_LONG are set,
          * otherwise causes issues with CTC_SETTINGS */
         #if !defined(SIZEOF_LONG_LONG) || !defined(SIZEOF_LONG)
             #include <limits.h>
@@ -485,7 +491,7 @@ decouple library dependencies with standard string, memory and so on.
                 } \
             }
         #define FREE_VAR(VAR_NAME, HEAP) \
-            XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);
+            XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT)
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
                 XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
@@ -857,8 +863,9 @@ decouple library dependencies with standard string, memory and so on.
 
     /* hash types */
     enum wc_HashType {
-    #if defined(HAVE_SELFTEST) || defined(HAVE_FIPS) && \
-        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION <= 2))
+    #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && \
+        ((! defined(HAVE_FIPS_VERSION)) || \
+         defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION <= 2)))
         /* In selftest build, WC_* types are not mapped to WC_HASH_TYPE types.
          * Values here are based on old selftest hmac.h enum, with additions.
          * These values are fixed for backwards FIPS compatibility */
@@ -878,12 +885,16 @@ decouple library dependencies with standard string, memory and so on.
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 19,
-        WC_HASH_TYPE_SHA512_224 = 20,
-        WC_HASH_TYPE_SHA512_256 = 21,    
-        WC_HASH_TYPE_SHAKE128 = 22,
-        WC_HASH_TYPE_SHAKE256 = 23,
-
-        WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256
+        WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2S
+        #ifndef WOLFSSL_NOSHA512_224
+            #define WOLFSSL_NOSHA512_224
+        #endif
+        #ifndef WOLFSSL_NOSHA512_256
+            #define WOLFSSL_NOSHA512_256
+        #endif
+        #ifndef WOLFSSL_NO_SHAKE256
+            #define WOLFSSL_NO_SHAKE256
+        #endif
     #else
         WC_HASH_TYPE_NONE = 0,
         WC_HASH_TYPE_MD2 = 1,
@@ -901,12 +912,25 @@ decouple library dependencies with standard string, memory and so on.
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 15,
-        WC_HASH_TYPE_SHA512_224 = 16,
-        WC_HASH_TYPE_SHA512_256 = 17,
-        WC_HASH_TYPE_SHAKE128 = 18,
-        WC_HASH_TYPE_SHAKE256 = 19,
-
-        WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_BLAKE2S
+        #ifndef WOLFSSL_NOSHA512_224
+            WC_HASH_TYPE_SHA512_224 = 16,
+#undef _WC_HASH_TYPE_MAX
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHA512_224
+        #endif
+        #ifndef WOLFSSL_NOSHA512_256
+            WC_HASH_TYPE_SHA512_256 = 17,
+#undef _WC_HASH_TYPE_MAX
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHA512_256
+        #endif
+        #ifndef WOLFSSL_NO_SHAKE256
+            WC_HASH_TYPE_SHAKE128 = 18,
+            WC_HASH_TYPE_SHAKE256 = 19,
+#undef _WC_HASH_TYPE_MAX
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHAKE256
+        #endif
+        WC_HASH_TYPE_MAX = _WC_HASH_TYPE_MAX
+#undef _WC_HASH_TYPE_MAX
 
     #endif /* HAVE_SELFTEST */
     };
@@ -1126,11 +1150,13 @@ decouple library dependencies with standard string, memory and so on.
     #endif
 
     #if defined(__GNUC__) && __GNUC__ > 5
-        #define PRAGMA_GCC_IGNORE(str) _Pragma(str);
-        #define PRAGMA_GCC_POP         _Pragma("GCC diagnostic pop");
+        #define PRAGMA_GCC_DIAG_PUSH _Pragma("GCC diagnostic push")
+        #define PRAGMA_GCC(str) _Pragma(str)
+        #define PRAGMA_GCC_DIAG_POP _Pragma("GCC diagnostic pop")
     #else
-        #define PRAGMA_GCC_IGNORE(str)
-        #define PRAGMA_GCC_POP
+        #define PRAGMA_GCC_DIAG_PUSH
+        #define PRAGMA_GCC(str)
+        #define PRAGMA_GCC_DIAG_POP
     #endif
 
     #ifdef __cplusplus

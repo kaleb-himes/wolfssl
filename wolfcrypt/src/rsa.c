@@ -599,112 +599,97 @@ int wc_FreeRsaKey(RsaKey* key)
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
-/* Check the pair-wise consistency of the RSA key.
- * From NIST SP 800-56B, section 6.4.1.1.
- * Verify that k = (k^e)^d, for some k: 1 < k < n-1. */
+
+/* Check the pair-wise consistency of the RSA key. */
+static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
+{
+    const char* msg = "Everyone gets Friday off.";
+    byte* sig;
+    byte* plain;
+    int ret = 0;
+    word32 msgLen, plainLen, sigLen;
+
+    msgLen = (word32)XSTRLEN(msg);
+    sigLen = wc_RsaEncryptSize(key);
+
+    /* Sign and verify. */
+    sig = (byte*)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_RSA);
+    if (sig == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(sig, 0, sigLen);
+    plain = sig;
+
+    ret = wc_RsaSSL_Sign((const byte*)msg, msgLen, sig, sigLen, key, rng);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ret == WC_PENDING_E) {
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    }
+#endif
+    if (ret > 0) {
+        sigLen = (word32)ret;
+        ret = wc_RsaSSL_VerifyInline(sig, sigLen, &plain, key);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret == WC_PENDING_E) {
+            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        }
+#endif
+    }
+
+    if (ret > 0) {
+        plainLen = (word32)ret;
+        ret = (msgLen != plainLen) || (XMEMCMP(plain, msg, msgLen) != 0);
+    }
+
+    if (ret != 0)
+        ret = RSA_KEY_PAIR_E;
+
+    ForceZero(sig, sigLen);
+    XFREE(sig, NULL, DYNAMIC_TYPE_RSA);
+
+    return ret;
+}
+
+
 int wc_CheckRsaKey(RsaKey* key)
 {
 #if defined(WOLFSSL_CRYPTOCELL)
     return 0;
 #endif
 #ifdef WOLFSSL_SMALL_STACK
-    mp_int *k = NULL, *tmp = NULL;
+    mp_int *tmp = NULL;
+    WC_RNG *rng = NULL;
 #else
-    mp_int k[1], tmp[1];
+    mp_int tmp[1];
+    WC_RNG rng[1];
 #endif
     int ret = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
-    k = (mp_int*)XMALLOC(sizeof(mp_int) * 2, NULL, DYNAMIC_TYPE_RSA);
-    if (k == NULL)
+    rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+    if (rng != NULL)
+        tmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_RSA);
+    if (rng == NULL || tmp == NULL) {
+        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+        XFREE(tmp, NULL, DYNAMIC_TYPE_RSA);
         return MEMORY_E;
-    tmp = k + 1;
+    }
 #endif
 
-    if (mp_init_multi(k, tmp, NULL, NULL, NULL, NULL) != MP_OKAY)
-        ret = MP_INIT_E;
+    ret = wc_InitRng(rng);
+
+    if (ret == 0) {
+        if (mp_init(tmp) != MP_OKAY)
+            ret = MP_INIT_E;
+    }
 
     if (ret == 0) {
         if (key == NULL)
             ret = BAD_FUNC_ARG;
     }
 
-    if (ret == 0) {
-        if (mp_set_int(k, 0x2342) != MP_OKAY)
-            ret = MP_READ_E;
-    }
-#ifdef WOLFSSL_HAVE_SP_RSA
-    if (ret == 0) {
-        switch (mp_count_bits(&key->n)) {
-    #ifndef WOLFSSL_SP_NO_2048
-            case 2048:
-                ret = sp_ModExp_2048(k, &key->e, &key->n, tmp);
-                if (ret != 0)
-                    ret = MP_EXPTMOD_E;
-                if (ret == 0) {
-                    ret = sp_ModExp_2048(tmp, &key->d, &key->n, tmp);
-                    if (ret != 0)
-                        ret = MP_EXPTMOD_E;
-                }
-                break;
-    #endif /* WOLFSSL_SP_NO_2048 */
-    #ifndef WOLFSSL_SP_NO_3072
-            case 3072:
-                ret = sp_ModExp_3072(k, &key->e, &key->n, tmp);
-                if (ret != 0)
-                    ret = MP_EXPTMOD_E;
-                if (ret == 0) {
-                  ret = sp_ModExp_3072(tmp, &key->d, &key->n, tmp);
-                  if (ret != 0)
-                      ret = MP_EXPTMOD_E;
-                }
-                break;
-    #endif /* WOLFSSL_SP_NO_3072 */
-    #ifdef WOLFSSL_SP_4096
-            case 4096:
-                ret = sp_ModExp_4096(k, &key->e, &key->n, tmp);
-                if (ret != 0)
-                    ret = MP_EXPTMOD_E;
-                if (ret == 0) {
-                  ret = sp_ModExp_4096(tmp, &key->d, &key->n, tmp);
-                  if (ret != 0)
-                      ret = MP_EXPTMOD_E;
-                }
-                break;
-    #endif /* WOLFSSL_SP_4096 */
-                default:
-                /* If using only single precision math then issue key size
-                 * error, otherwise fall-back to multi-precision math
-                 * calculation */
-                #if defined(WOLFSSL_SP_MATH)
-                    ret = WC_KEY_SIZE_E;
-                #else
-                    if (mp_exptmod_nct(k, &key->e, &key->n, tmp) != MP_OKAY)
-                        ret = MP_EXPTMOD_E;
-                    if (ret == 0) {
-                        if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
-                            ret = MP_EXPTMOD_E;
-                    }
-                #endif
-                    break;
-        }
-    }
-#else
-    if (ret == 0) {
-        if (mp_exptmod_nct(k, &key->e, &key->n, tmp) != MP_OKAY)
-            ret = MP_EXPTMOD_E;
-    }
-
-    if (ret == 0) {
-        if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
-            ret = MP_EXPTMOD_E;
-    }
-#endif /* WOLFSSL_HAVE_SP_RSA */
-
-    if (ret == 0) {
-        if (mp_cmp(k, tmp) != MP_EQ)
-            ret = RSA_KEY_PAIR_E;
-    }
+    if (ret == 0)
+        ret = _ifc_pairwise_consistency_test(key, rng);
 
     /* Check d is less than n. */
     if (ret == 0 ) {
@@ -791,9 +776,10 @@ int wc_CheckRsaKey(RsaKey* key)
 
     mp_forcezero(tmp);
     mp_clear(tmp);
-    mp_clear(k);
+    wc_FreeRng(rng);
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(k, NULL, DYNAMIC_TYPE_RSA);
+    XFREE(tmp, NULL, DYNAMIC_TYPE_RSA);
+    XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
 #endif
 
     return ret;
@@ -1854,16 +1840,22 @@ int wc_hash2mgf(enum wc_HashType hType)
     case WC_HASH_TYPE_MD4:
     case WC_HASH_TYPE_MD5:
     case WC_HASH_TYPE_MD5_SHA:
-    case WC_HASH_TYPE_SHA512_224:
-    case WC_HASH_TYPE_SHA512_256:
+    #ifndef WOLFSSL_NOSHA512_224
+        case WC_HASH_TYPE_SHA512_224:
+    #endif
+    #ifndef WOLFSSL_NOSHA512_256
+        case WC_HASH_TYPE_SHA512_256:
+    #endif
     case WC_HASH_TYPE_SHA3_224:
     case WC_HASH_TYPE_SHA3_256:
     case WC_HASH_TYPE_SHA3_384:
     case WC_HASH_TYPE_SHA3_512:
     case WC_HASH_TYPE_BLAKE2B:
     case WC_HASH_TYPE_BLAKE2S:
-    case WC_HASH_TYPE_SHAKE128:
-    case WC_HASH_TYPE_SHAKE256:
+    #ifndef WOLFSSL_NO_SHAKE256
+        case WC_HASH_TYPE_SHAKE128:
+        case WC_HASH_TYPE_SHAKE256:
+    #endif
     default:
         break;
     }
@@ -3923,37 +3915,61 @@ int wc_RsaExportKey(RsaKey* key,
 /* Check that |p-q| > 2^((size/2)-100) */
 static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size)
 {
-    mp_int c, d;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *c = NULL, *d = NULL;
+#else
+    mp_int c[1], d[1];
+#endif
     int ret;
 
     if (p == NULL || q == NULL)
         return BAD_FUNC_ARG;
 
-    ret = mp_init_multi(&c, &d, NULL, NULL, NULL, NULL);
+#ifdef WOLFSSL_SMALL_STACK
+    if (((c = (mp_int *)XMALLOC(sizeof(*c), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL) ||
+        ((d = (mp_int *)XMALLOC(sizeof(*d), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL))
+        ret = MEMORY_E;
+    else
+        ret = 0;
+
+    if (ret == 0)
+#endif
+        ret = mp_init_multi(c, d, NULL, NULL, NULL, NULL);
 
     /* c = 2^((size/2)-100) */
     if (ret == 0)
-        ret = mp_2expt(&c, (size/2)-100);
+        ret = mp_2expt(c, (size/2)-100);
 
     /* d = |p-q| */
     if (ret == 0)
-        ret = mp_sub(p, q, &d);
+        ret = mp_sub(p, q, d);
 
 #if !defined(WOLFSSL_SP_MATH) && (!defined(WOLFSSL_SP_MATH_ALL) || \
                                                defined(WOLFSSL_SP_INT_NEGATIVE))
     if (ret == 0)
-        ret = mp_abs(&d, &d);
+        ret = mp_abs(d, d);
 #endif
 
     /* compare */
     if (ret == 0)
-        ret = mp_cmp(&d, &c);
+        ret = mp_cmp(d, c);
 
     if (ret == MP_GT)
         ret = MP_OKAY;
 
-    mp_clear(&d);
-    mp_clear(&c);
+#ifdef WOLFSSL_SMALL_STACK
+    if (d != NULL) {
+        mp_clear(d);
+        XFREE(d, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    }
+    if (c != NULL) {
+        mp_clear(c);
+        XFREE(c, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    }
+#else
+    mp_clear(d);
+    mp_clear(c);
+#endif
 
     return ret;
 }
@@ -4032,7 +4048,11 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
                                     int* isPrime, WC_RNG* rng)
 {
     int ret;
-    mp_int tmp1, tmp2;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *tmp1 = NULL, *tmp2 = NULL;
+#else
+    mp_int tmp1[1], tmp2[2];
+#endif
     mp_int* prime;
 
     if (p == NULL || e == NULL || isPrime == NULL)
@@ -4052,22 +4072,30 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
     else
         prime = p;
 
-    ret = mp_init_multi(&tmp1, &tmp2, NULL, NULL, NULL, NULL);
+#ifdef WOLFSSL_SMALL_STACK
+    if (((tmp1 = (mp_int *)XMALLOC(sizeof(*tmp1), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL) ||
+        ((tmp2 = (mp_int *)XMALLOC(sizeof(*tmp2), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)) {
+        ret = MEMORY_E;
+        goto notOkay;
+    }
+#endif
+
+    ret = mp_init_multi(tmp1, tmp2, NULL, NULL, NULL, NULL);
     if (ret != MP_OKAY) goto notOkay;
 
     /* 4.4,5.5 - Check that prime >= (2^(1/2))(2^((nlen/2)-1))
      *           This is a comparison against lowerBound */
-    ret = mp_read_unsigned_bin(&tmp1, lower_bound, nlen/16);
+    ret = mp_read_unsigned_bin(tmp1, lower_bound, nlen/16);
     if (ret != MP_OKAY) goto notOkay;
-    ret = mp_cmp(prime, &tmp1);
+    ret = mp_cmp(prime, tmp1);
     if (ret == MP_LT) goto exit;
 
     /* 4.5,5.6 - Check that GCD(p-1, e) == 1 */
-    ret = mp_sub_d(prime, 1, &tmp1);  /* tmp1 = prime-1 */
+    ret = mp_sub_d(prime, 1, tmp1);  /* tmp1 = prime-1 */
     if (ret != MP_OKAY) goto notOkay;
-    ret = mp_gcd(&tmp1, e, &tmp2);  /* tmp2 = gcd(prime-1, e) */
+    ret = mp_gcd(tmp1, e, tmp2);  /* tmp2 = gcd(prime-1, e) */
     if (ret != MP_OKAY) goto notOkay;
-    ret = mp_cmp_d(&tmp2, 1);
+    ret = mp_cmp_d(tmp2, 1);
     if (ret != MP_EQ) goto exit; /* e divides p-1 */
 
     /* 4.5.1,5.6.1 - Check primality of p with 8 rounds of M-R.
@@ -4085,9 +4113,23 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
 
 exit:
     ret = MP_OKAY;
+
 notOkay:
-    mp_clear(&tmp1);
-    mp_clear(&tmp2);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (tmp1 != NULL) {
+        mp_clear(tmp1);
+        XFREE(tmp1, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    }
+    if (tmp2 != NULL) {
+        mp_clear(tmp2);
+        XFREE(tmp2, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    }
+#else
+    mp_clear(tmp1);
+    mp_clear(tmp2);
+#endif
+
     return ret;
 }
 
@@ -4116,6 +4158,7 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
+
     if (((p = (mp_int *)XMALLOC(sizeof(*p), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL) ||
         ((q = (mp_int *)XMALLOC(sizeof(*q), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL) ||
         ((e = (mp_int *)XMALLOC(sizeof(*e), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL))
@@ -4146,15 +4189,15 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
     ret = (ret == MP_OKAY) ? 0 : PRIME_GEN_E;
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (p) {
+    if (p != NULL) {
         mp_clear(p);
         XFREE(p, NULL, DYNAMIC_TYPE_RSA_BUFFER);
     }
-    if (q) {
+    if (q != NULL) {
         mp_clear(q);
         XFREE(q, NULL, DYNAMIC_TYPE_RSA_BUFFER);
     }
-    if (e) {
+    if (e != NULL) {
         mp_clear(e);
         XFREE(e, NULL, DYNAMIC_TYPE_RSA_BUFFER);
     }
@@ -4466,10 +4509,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     mp_clear(p);
     mp_clear(q);
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
+#ifndef WOLFSSL_NO_RSA_KEY_CHECK
     /* Perform the pair-wise consistency test on the new key. */
     if (err == 0)
-        err = wc_CheckRsaKey(key);
+        err = _ifc_pairwise_consistency_test(key, rng);
 #endif
 
     if (err != 0) {

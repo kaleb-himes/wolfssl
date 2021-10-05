@@ -37,6 +37,7 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/coding.h>
+#include <wolfssl/wolfcrypt/kdf.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -61,8 +62,9 @@
     #endif
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-        defined(HAVE_WEBSERVER) || defined(WOLFSSL_KEY_GEN)
+#if !defined(WOLFCRYPT_ONLY) && (defined(OPENSSL_EXTRA)     \
+    || defined(OPENSSL_EXTRA_X509_SMALL)                    \
+    || defined(HAVE_WEBSERVER) || defined(WOLFSSL_KEY_GEN))
     #include <wolfssl/openssl/evp.h>
     /* openssl headers end, wolfssl internal headers next */
 #endif
@@ -76,15 +78,19 @@
 #ifdef OPENSSL_EXTRA
     /* openssl headers begin */
     #include <wolfssl/openssl/aes.h>
+#ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/cmac.h>
+#endif
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/des.h>
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/buffer.h>
     #include <wolfssl/openssl/dh.h>
     #include <wolfssl/openssl/rsa.h>
+#ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/pem.h>
+#endif
     #include <wolfssl/openssl/ec.h>
     #include <wolfssl/openssl/ec25519.h>
     #include <wolfssl/openssl/ed25519.h>
@@ -239,6 +245,41 @@ byte tsip_rootCAverified( );
 #endif
 
 #ifdef WOLFSSL_SESSION_EXPORT
+/* Used to import a serialized TLS session.
+ * WARNING: buf contains sensitive information about the state and is best to be
+ *          encrypted before storing if stored.
+ *
+ * @param ssl WOLFSSL structure to import the session into
+ * @param buf serialized session
+ * @param sz  size of buffer 'buf'
+ * @return the number of bytes read from buffer 'buf'
+ */
+int wolfSSL_tls_import(WOLFSSL* ssl, const unsigned char* buf, unsigned int sz)
+{
+    if (ssl == NULL || buf == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return wolfSSL_session_import_internal(ssl, buf, sz, WOLFSSL_EXPORT_TLS);
+}
+
+
+/* Used to export a serialized TLS session.
+ * WARNING: buf contains sensitive information about the state and is best to be
+ *          encrypted before storing if stored.
+ *
+ * @param ssl WOLFSSL structure to export the session from
+ * @param buf output of serialized session
+ * @param sz  size in bytes set in 'buf'
+ * @return the number of bytes written into buffer 'buf'
+ */
+int wolfSSL_tls_export(WOLFSSL* ssl, unsigned char* buf, unsigned int* sz)
+{
+    if (ssl == NULL || sz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return wolfSSL_session_export_internal(ssl, buf, sz, WOLFSSL_EXPORT_TLS);
+}
+
 #ifdef WOLFSSL_DTLS
 int wolfSSL_dtls_import(WOLFSSL* ssl, const unsigned char* buf, unsigned int sz)
 {
@@ -249,7 +290,7 @@ int wolfSSL_dtls_import(WOLFSSL* ssl, const unsigned char* buf, unsigned int sz)
     }
 
     /* sanity checks on buffer and protocol are done in internal function */
-    return wolfSSL_dtls_import_internal(ssl, buf, sz);
+    return wolfSSL_session_import_internal(ssl, buf, sz, WOLFSSL_EXPORT_DTLS);
 }
 
 
@@ -319,7 +360,7 @@ int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf, unsigned int* sz)
     }
 
     /* copy over keys, options, and dtls state struct */
-    return wolfSSL_dtls_export_internal(ssl, buf, *sz);
+    return wolfSSL_session_export_internal(ssl, buf, sz, WOLFSSL_EXPORT_DTLS);
 }
 
 
@@ -363,7 +404,7 @@ int wolfSSL_send_session(WOLFSSL* ssl)
 {
     int ret;
     byte* buf;
-    word16 bufSz = MAX_EXPORT_BUFFER;
+    word32 bufSz = MAX_EXPORT_BUFFER;
 
     WOLFSSL_ENTER("wolfSSL_send_session");
 
@@ -384,7 +425,7 @@ int wolfSSL_send_session(WOLFSSL* ssl)
     }
 
     /* copy over keys, options, and dtls state struct */
-    ret = wolfSSL_dtls_export_internal(ssl, buf, bufSz);
+    ret = wolfSSL_session_export_internal(ssl, buf, &bufSz, WOLFSSL_EXPORT_DTLS);
     if (ret < 0) {
         XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
@@ -14376,7 +14417,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
 #endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
 
-#ifdef WOLFSSL_SESSION_EXPORT
+#if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS)
             if (ssl->dtls_export) {
                 if ((ssl->error = wolfSSL_send_session(ssl)) != 0) {
                     WOLFSSL_MSG("Export DTLS session error");
@@ -15609,10 +15650,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 idx += (int)iov[i].iov_len;
             }
 
-           /* myBuffer may not initialized fully, but the sending length will be */
-            PRAGMA_GCC_IGNORE("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+           /* myBuffer may not be initialized fully, but the span up to the
+            * sending length will be.
+            */
+            PRAGMA_GCC_DIAG_PUSH;
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
             ret = wolfSSL_write(ssl, myBuffer, sending);
-            PRAGMA_GCC_POP;
+            PRAGMA_GCC_DIAG_POP;
 
             if (dynamic)
                 XFREE(myBuffer, ssl->heap, DYNAMIC_TYPE_WRITEV);
@@ -46564,7 +46608,7 @@ int wolfSSL_CRYPTO_set_mem_functions(
         return WOLFSSL_FAILURE;
 }
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST)
+#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && !defined(NO_DH)
 WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
                            void (*callback) (int, int, void *), void *cb_arg)
 {
@@ -46631,7 +46675,7 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len, int generat
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* WOLFSSL_KEY_GEN && !HAVE_SELFTEST */
+#endif /* WOLFSSL_KEY_GEN && !HAVE_SELFTEST && !NO_DH */
 
 int wolfSSL_ERR_load_ERR_strings(void)
 {
@@ -55850,34 +55894,52 @@ static int wolfssl_conf_value_cmp(const WOLFSSL_CONF_VALUE *a,
     }
 }
 
-/* Use MD5 for hashing as OpenSSL uses a hash algorithm that is
- * "not as good as MD5, but still good" so using MD5 should
- * be good enough for this application. The produced hashes don't
+/* Use SHA for hashing as OpenSSL uses a hash algorithm that is
+ * "not as good as MD5, but still good" so using SHA should be more
+ * than good enough for this application. The produced hashes don't
  * need to line up between OpenSSL and wolfSSL. The hashes are for
  * internal indexing only */
 unsigned long wolfSSL_LH_strhash(const char *str)
 {
     unsigned long ret = 0;
+#ifndef NO_SHA
+    wc_Sha sha;
     int strLen;
-    byte digest[WC_MD5_DIGEST_SIZE];
+    byte digest[WC_SHA_DIGEST_SIZE];
+#endif
     WOLFSSL_ENTER("wolfSSL_LH_strhash");
 
     if (!str)
         return 0;
 
-#ifndef NO_MD5
+#ifndef NO_SHA
     strLen = (int)XSTRLEN(str);
-    if (wc_Md5Hash((const byte*)str, strLen, digest) != 0) {
-        WOLFSSL_MSG("wc_Md5Hash error");
+
+    if (wc_InitSha_ex(&sha, NULL, 0) != 0) {
+        WOLFSSL_MSG("SHA1 Init failed");
         return 0;
     }
+
+    ret = wc_ShaUpdate(&sha, (const byte *)str, (word32)strLen);
+    if (ret != 0) {
+        WOLFSSL_MSG("SHA1 Update failed");
+    } else {
+        ret = wc_ShaFinal(&sha, digest);
+        if (ret != 0) {
+            WOLFSSL_MSG("SHA1 Final failed");
+        }
+    }
+    wc_ShaFree(&sha);
+    if (ret != 0)
+        return 0;
+
     /* Take first 4 bytes in small endian as unsigned long */
     ret  =  (unsigned int)digest[0];
     ret |= ((unsigned int)digest[1] << 8 );
     ret |= ((unsigned int)digest[2] << 16);
     ret |= ((unsigned int)digest[3] << 24);
 #else
-    WOLFSSL_MSG("No md5 available for wolfSSL_LH_strhash");
+    WOLFSSL_MSG("No SHA available for wolfSSL_LH_strhash");
 #endif
     return ret;
 }
@@ -57320,7 +57382,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             return WOLFSSL_FAILURE;
         }
 
-        if (b->num == SOCKET_INVALID) {
+        if (b->num == WOLFSSL_BIO_ERROR) {
             if (wolfIO_TcpBind(&sfd, b->port) < 0) {
                 WOLFSSL_ENTER("wolfIO_TcpBind error");
                 return WOLFSSL_FAILURE;
@@ -57607,7 +57669,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             bio->method = method;
 #endif
             bio->shutdown = BIO_CLOSE; /* default to close things */
-            bio->num = SOCKET_INVALID; /* Default to invalid socket */
+            bio->num = WOLFSSL_BIO_ERROR;
             bio->init = 1;
             if (method->type != WOLFSSL_BIO_FILE &&
                     method->type != WOLFSSL_BIO_SOCKET &&
@@ -57757,7 +57819,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
                 if (bio->type == WOLFSSL_BIO_SSL && bio->ptr)
                     wolfSSL_free((WOLFSSL*)bio->ptr);
             #ifdef CloseSocket
-                if (bio->type == WOLFSSL_BIO_SOCKET && bio->num)
+                if ((bio->type == WOLFSSL_BIO_SOCKET) && (bio->num > 0))
                     CloseSocket(bio->num);
             #endif
             }
@@ -57769,7 +57831,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
                 }
             #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
                 && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
-                else if (bio->num != SOCKET_INVALID) {
+                else if (bio->num != WOLFSSL_BIO_ERROR) {
                     XCLOSE(bio->num);
                 }
             #endif
@@ -57940,7 +58002,7 @@ int wolfSSL_BIO_get_fd(WOLFSSL_BIO *bio, int* fd)
         return bio->num;
     }
 
-    return SOCKET_INVALID;
+    return WOLFSSL_BIO_ERROR;
 }
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS

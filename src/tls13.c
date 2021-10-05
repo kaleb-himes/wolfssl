@@ -99,6 +99,7 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/dh.h>
+#include <wolfssl/wolfcrypt/kdf.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -140,137 +141,6 @@
  * eLabel  The label to jump to.
  */
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
-
-
-/* Extract data using HMAC, salt and input.
- * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
- *
- * prk      The generated pseudorandom key.
- * salt     The salt.
- * saltLen  The length of the salt.
- * ikm      The input keying material.
- * ikmLen   The length of the input keying material.
- * mac      The type of digest to use.
- * returns 0 on success, otherwise failure.
- */
-static int Tls13_HKDF_Extract(byte* prk, const byte* salt, int saltLen,
-                             byte* ikm, int ikmLen, int mac)
-{
-    int ret;
-    int hash = 0;
-    int len = 0;
-
-    switch (mac) {
-        #ifndef NO_SHA256
-        case sha256_mac:
-            hash = WC_SHA256;
-            len = WC_SHA256_DIGEST_SIZE;
-            break;
-        #endif
-
-        #ifdef WOLFSSL_SHA384
-        case sha384_mac:
-            hash = WC_SHA384;
-            len = WC_SHA384_DIGEST_SIZE;
-            break;
-        #endif
-
-        #ifdef WOLFSSL_TLS13_SHA512
-        case sha512_mac:
-            hash = WC_SHA512;
-            len = WC_SHA512_DIGEST_SIZE;
-            break;
-        #endif
-
-        default:
-            break;
-    }
-
-    /* When length is 0 then use zeroed data of digest length. */
-    if (ikmLen == 0) {
-        ikmLen = len;
-        XMEMSET(ikm, 0, len);
-    }
-
-#ifdef WOLFSSL_DEBUG_TLS
-    WOLFSSL_MSG("  Salt");
-    WOLFSSL_BUFFER(salt, saltLen);
-    WOLFSSL_MSG("  IKM");
-    WOLFSSL_BUFFER(ikm, ikmLen);
-#endif
-
-    ret = wc_HKDF_Extract(hash, salt, saltLen, ikm, ikmLen, prk);
-
-#ifdef WOLFSSL_DEBUG_TLS
-    WOLFSSL_MSG("  PRK");
-    WOLFSSL_BUFFER(prk, len);
-#endif
-
-    return ret;
-}
-
-/* Expand data using HMAC, salt and label and info.
- * TLS v1.3 defines this function.
- *
- * okm          The generated pseudorandom key - output key material.
- * okmLen       The length of generated pseudorandom key - output key material.
- * prk          The salt - pseudo-random key.
- * prkLen       The length of the salt - pseudo-random key.
- * protocol     The TLS protocol label.
- * protocolLen  The length of the TLS protocol label.
- * info         The information to expand.
- * infoLen      The length of the information.
- * digest       The type of digest to use.
- * returns 0 on success, otherwise failure.
- */
-static int HKDF_Expand_Label(byte* okm, word32 okmLen,
-                             const byte* prk, word32 prkLen,
-                             const byte* protocol, word32 protocolLen,
-                             const byte* label, word32 labelLen,
-                             const byte* info, word32 infoLen,
-                             int digest)
-{
-    int    ret = 0;
-    int    idx = 0;
-    byte   data[MAX_HKDF_LABEL_SZ];
-
-    /* Output length. */
-    data[idx++] = (byte)(okmLen >> 8);
-    data[idx++] = (byte)okmLen;
-    /* Length of protocol | label. */
-    data[idx++] = (byte)(protocolLen + labelLen);
-    /* Protocol */
-    XMEMCPY(&data[idx], protocol, protocolLen);
-    idx += protocolLen;
-    /* Label */
-    XMEMCPY(&data[idx], label, labelLen);
-    idx += labelLen;
-    /* Length of hash of messages */
-    data[idx++] = (byte)infoLen;
-    /* Hash of messages */
-    if (info != NULL && infoLen > 0) {
-        XMEMCPY(&data[idx], info, infoLen);
-        idx += infoLen;
-    }
-
-#ifdef WOLFSSL_DEBUG_TLS
-    WOLFSSL_MSG("  PRK");
-    WOLFSSL_BUFFER(prk, prkLen);
-    WOLFSSL_MSG("  Info");
-    WOLFSSL_BUFFER(data, idx);
-#endif
-
-    ret = wc_HKDF_Expand(digest, prk, prkLen, data, idx, okm, okmLen);
-
-#ifdef WOLFSSL_DEBUG_TLS
-    WOLFSSL_MSG("  OKM");
-    WOLFSSL_BUFFER(okm, okmLen);
-#endif
-
-    ForceZero(data, idx);
-
-    return ret;
-}
 
 /* Size of the TLS v1.3 label use when deriving keys. */
 #define TLS13_PROTOCOL_LABEL_SZ    6
@@ -365,7 +235,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
     if (outputLen == -1)
         outputLen = hashSz;
 
-    return HKDF_Expand_Label(output, outputLen, secret, hashSz,
+    return wc_Tls13_HKDF_Expand_Label(output, outputLen, secret, hashSz,
                              protocol, protocolLen, label, labelLen,
                              hash, hashSz, digestAlg);
 }
@@ -438,12 +308,53 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     if (includeMsgs)
         hashOutSz = hashSz;
 
-    /* myBuffer may not initialized fully, but the sending length will be */
-    PRAGMA_GCC_IGNORE("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-    return HKDF_Expand_Label(output, outputLen, secret, hashSz,
+    /* hash buffer may not be fully initialized, but the sending length won't
+     * extend beyond the initialized span.
+     */
+    PRAGMA_GCC_DIAG_PUSH;
+    PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+    #if defined(HAVE_FIPS) && defined(wc_Tls13_HKDF_Expand_Label)
+    return wc_Tls13_HKDF_Expand_Label_fips(output, outputLen, secret, hashSz,
                              protocol, protocolLen, label, labelLen,
                              hash, hashOutSz, digestAlg);
-    PRAGMA_GCC_POP;
+    #else
+    return wc_Tls13_HKDF_Expand_Label(output, outputLen, secret, hashSz,
+                             protocol, protocolLen, label, labelLen,
+                             hash, hashOutSz, digestAlg);
+    #endif
+    PRAGMA_GCC_DIAG_POP;
+}
+
+/* Convert TLS mac ID to a hash algorithm ID
+ *
+ * mac Mac ID to convert
+ * returns hash ID on success, or the NONE type.
+ */
+static WC_INLINE int mac2hash(int mac)
+{
+    int hash;
+    switch (mac) {
+        #ifndef NO_SHA256
+        case sha256_mac:
+            hash = WC_SHA256;
+            break;
+        #endif
+
+        #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            hash = WC_SHA384;
+            break;
+        #endif
+
+        #ifdef WOLFSSL_TLS13_SHA512
+        case sha512_mac:
+            hash = WC_SHA512;
+            break;
+        #endif
+    default:
+        hash = WC_HASH_TYPE_NONE;
+    }
+    return hash;
 }
 
 #ifndef NO_PSK
@@ -883,7 +794,7 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     }
 
     /* Derive-Secret(Secret, label, "") */
-    ret = HKDF_Expand_Label(firstExpand, hashLen,
+    ret = wc_Tls13_HKDF_Expand_Label(firstExpand, hashLen,
             ssl->arrays->exporterSecret, hashLen,
             protocol, protocolLen, (byte*)label, (word32)labelLen,
             emptyHash, hashLen, hashType);
@@ -895,7 +806,7 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     if (ret != 0)
         return ret;
 
-    ret = HKDF_Expand_Label(out, (word32)outLen, firstExpand, hashLen,
+    ret = wc_Tls13_HKDF_Expand_Label(out, (word32)outLen, firstExpand, hashLen,
             protocol, protocolLen, exporterLabel, EXPORTER_LABEL_SZ,
             hashOut, hashLen, hashType);
 
@@ -984,12 +895,12 @@ int DeriveEarlySecret(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
     }
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    return Tls13_HKDF_Extract(ssl->arrays->secret, NULL, 0,
+    return wc_Tls13_HKDF_Extract(ssl->arrays->secret, NULL, 0,
             ssl->arrays->psk_key, ssl->arrays->psk_keySz,
-            ssl->specs.mac_algorithm);
+            mac2hash(ssl->specs.mac_algorithm));
 #else
-    return Tls13_HKDF_Extract(ssl->arrays->secret, NULL, 0,
-            ssl->arrays->masterSecret, 0, ssl->specs.mac_algorithm);
+    return wc_Tls13_HKDF_Extract(ssl->arrays->secret, NULL, 0,
+            ssl->arrays->masterSecret, 0, mac2hash(ssl->specs.mac_algorithm));
 #endif
 }
 
@@ -1017,10 +928,10 @@ int DeriveHandshakeSecret(WOLFSSL* ssl)
     if (ret != 0)
         return ret;
 
-    return Tls13_HKDF_Extract(ssl->arrays->preMasterSecret,
+    return wc_Tls13_HKDF_Extract(ssl->arrays->preMasterSecret,
             key, ssl->specs.hash_size,
             ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
-            ssl->specs.mac_algorithm);
+            mac2hash(ssl->specs.mac_algorithm));
 }
 
 /* Derive the master secret using HKDF Extract.
@@ -1041,9 +952,9 @@ int DeriveMasterSecret(WOLFSSL* ssl)
     if (ret != 0)
         return ret;
 
-    ret = Tls13_HKDF_Extract(ssl->arrays->masterSecret,
+    ret = wc_Tls13_HKDF_Extract(ssl->arrays->masterSecret,
             key, ssl->specs.hash_size,
-            ssl->arrays->masterSecret, 0, ssl->specs.mac_algorithm);
+            ssl->arrays->masterSecret, 0, mac2hash(ssl->specs.mac_algorithm));
 
 #ifdef HAVE_KEYING_MATERIAL
     if (ret != 0)
@@ -1101,7 +1012,7 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
             return BAD_FUNC_ARG;
     }
 
-    return HKDF_Expand_Label(secret, ssl->specs.hash_size,
+    return wc_Tls13_HKDF_Expand_Label(secret, ssl->specs.hash_size,
                              ssl->session.masterSecret, ssl->specs.hash_size,
                              protocol, protocolLen, resumptionLabel,
                              RESUMPTION_LABEL_SZ, nonce, nonceLen, digestAlg);
@@ -3489,6 +3400,13 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->version.minor = TLSv1_2_MINOR;
 #endif
         ssl->options.haveEMS = 0;
+        if (args->pv.minor < ssl->options.minDowngrade)
+            return VERSION_ERROR;
+#ifndef WOLFSSL_NO_TLS12
+        return DoServerHello(ssl, input, inOutIdx, helloSz);
+#else
+        return VERSION_ERROR;
+#endif
     }
 
     if ((args->idx - args->begin) < helloSz) {
