@@ -458,14 +458,18 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
     }
     Task_yield();
 #elif defined(NETOS)
+    /* This can be adjusted by defining in user_settings.h, will default to 65k
+     * in the event it is undefined */
+    #ifndef TESTSUITE_THREAD_STACK_SZ
+        #define TESTSUITE_THREAD_STACK_SZ 65535
+    #endif
     int result;
     static void * TestSuiteThreadStack = NULL;
 
-    #define TestSuiteThreadStackSize 65535
     /* Assume only one additional thread is created concurrently. */
     if (TestSuiteThreadStack == NULL)
     {
-        TestSuiteThreadStack = (void *)malloc(TestSuiteThreadStackSize);
+        TestSuiteThreadStack = (void *)malloc(TESTSUITE_THREAD_STACK_SZ);
         if (TestSuiteThreadStack == NULL)
         {
             printf ("Stack allocation failure.\n");
@@ -488,7 +492,7 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
                        "WolfSSL TestSuiteThread",
                        (entry_functionType)fun, (ULONG)args,
                        TestSuiteThreadStack,
-                       TestSuiteThreadStackSize,
+                       TESTSUITE_THREAD_STACK_SZ,
                        2, 2,
                        1, TX_AUTO_START);
     if (result != TX_SUCCESS)

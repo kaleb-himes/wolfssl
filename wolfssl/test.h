@@ -385,9 +385,11 @@
     /* Whitewood netRandom default config file */
     #define wnrConfig     "wnr-example.conf"
 #endif
-#elif defined(NETOS)
+#elif defined(NETOS) && defined(HAVE_FIPS)
     /* These defines specify the file system volume and root directory used by
-     * the FTP server */
+     * the FTP server used in the only supported NETOS FIPS solution (at this
+     * time), these can be tailored in the event a future FIPS solution is added
+     * for an alternate NETOS use-case */
     #define FS_VOLUME1     "FLASH0"
     #define FS_VOLUME1_DIR FS_VOLUME1 "/"
     #define caCertFile     FS_VOLUME1_DIR "certs/ca-cert.pem"
@@ -2374,7 +2376,7 @@ static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
 #elif defined(WOLFSSL_ZEPHYR)
     extern double current_time();
 #elif defined(NETOS)
-    static INLINE double current_time(int reset)
+    static WC_INLINE double current_time(int reset)
     {
         struct timeval tv;
         gettimeofday(&tv, NULL);

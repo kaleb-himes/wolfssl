@@ -17,7 +17,9 @@
     #define BIG_ENDIAN_ORDER
     #define NO_WRITEV
     #define NO_WOLFSSL_DIR
-//    #define DEBUG_WOLFSSL
+#if 0
+    #define DEBUG_WOLFSSL
+#endif
     #define NO_DEV_RANDOM
     #define NETOS
     #define NO_FILESYSTEM
@@ -28,8 +30,8 @@
     #define NO_WOLFSSL_STUB
     #define WOLFSSL_KEY_GEN
     #define HAVE_FORCE_FIPS_FAILURE
-    #define USE_CERT_BUFFERS_1024 //for the op-tests
-    #define USE_CERT_BUFFERS_256 // for the op-tests
+    #define USE_CERT_BUFFERS_1024 /* for the op-tests */
+    #define USE_CERT_BUFFERS_256 /* for the op-tests */
     
     #define TFM_TIMING_RESISTANT 
     #define ECC_TIMING_RESISTANT 
@@ -77,7 +79,9 @@
     #define BIG_ENDIAN_ORDER
     #define NO_WRITEV
     #define NO_WOLFSSL_DIR
-//    #define DEBUG_WOLFSSL
+#if 0
+    #define DEBUG_WOLFSSL
+#endif
     #define NO_DEV_RANDOM
     #define NETOS
     #define NO_FILESYSTEM
@@ -88,8 +92,8 @@
     #define NO_WOLFSSL_STUB
     #define WOLFSSL_KEY_GEN
     #define HAVE_FORCE_FIPS_FAILURE
-    #define USE_CERT_BUFFERS_2048 //for the op-tests
-    #define USE_CERT_BUFFERS_256 // for the op-tests
+    #define USE_CERT_BUFFERS_2048 /* for the op-tests */
+    #define USE_CERT_BUFFERS_256 /* for the op-tests */
 
     #define TFM_TIMING_RESISTANT 
     #define ECC_TIMING_RESISTANT 
@@ -134,7 +138,9 @@
     /* The NON-FIPS lib */
     #define THREADX
     #define BIG_ENDIAN_ORDER
-    //#define OPENSSL_EXTRA
+#if 0
+    #define OPENSSL_EXTRA
+#endif
     #define WOLFSSL_RIPEMD
     #define WOLFSSL_SHA512
     #define NO_PSK
@@ -152,7 +158,9 @@
     /* The NON-FIPS apps */
     #define THREADX
     #define BIG_ENDIAN_ORDER
-    //#define OPENSSL_EXTRA
+#if 0
+    #define OPENSSL_EXTRA
+#endif
     #define NO_PSK
     #define HAVE_EXTENDED_MASTER
     #define WOLFSSL_SNIFFER
