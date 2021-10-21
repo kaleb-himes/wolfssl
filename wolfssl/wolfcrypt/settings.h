@@ -1588,6 +1588,16 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /*(WOLFSSL_XILINX_CRYPT)*/
 
+#ifdef WOLFSSL_KCAPI_AES
+    #define WOLFSSL_AES_GCM_FIXED_IV_AAD
+#endif
+#ifdef WOLFSSL_KCAPI_ECC
+    #define ECC_USER_CURVES
+    #undef  NO_ECC256
+    #define HAVE_ECC384
+    #define HAVE_ECC521
+#endif
+
 #if defined(WOLFSSL_APACHE_MYNEWT)
     #include "os/os_malloc.h"
     #if !defined(WOLFSSL_LWIP)
@@ -2242,7 +2252,6 @@ extern void uITRON4_free(void *p) ;
  || defined(HAVE_LIGHTY)
     #define SSL_OP_NO_COMPRESSION    SSL_OP_NO_COMPRESSION
     #define OPENSSL_NO_ENGINE
-    #define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
     #ifndef OPENSSL_EXTRA
         #define OPENSSL_EXTRA
     #endif
@@ -2499,6 +2508,16 @@ extern void uITRON4_free(void *p) ;
      * This was added because some TLS peers required it even if not used, so we call 
      * this "(FAKE Secure Renegotiation)"
      */
+#endif
+
+/* Crypto callbacks should enable hash flag support */
+#if defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_HASH_FLAGS)
+    /* FIPS v1 and v2 do not support hash flags, so do not allow it with 
+     * crypto callbacks */
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS) && \
+            defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 3)
+        #define WOLFSSL_HASH_FLAGS
+    #endif
 #endif
 
 

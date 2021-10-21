@@ -101,6 +101,9 @@
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
 #endif
+#if defined(WOLFSSL_KCAPI_HASH)
+    #include "wolfssl/wolfcrypt/port/kcapi/kcapi_hash.h"
+#endif
 
 #if defined(_MSC_VER)
     #define SHA256_NOINLINE __declspec(noinline)
@@ -141,10 +144,16 @@ enum {
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
 #else
 
+#if defined(WOLFSSL_SE050)
+    #include "wolfssl/wolfcrypt/port/nxp/se050_port.h"
+#endif
+
 /* wc_Sha256 digest */
 struct wc_Sha256 {
 #ifdef FREESCALE_LTC_SHA
     ltc_hash_ctx_t ctx;
+#elif defined(WOLFSSL_SE050)
+    SE050_HASH_Context se050Ctx;
 #elif defined(STM32_HASH_SHA2)
     STM32_HASH_Context stmCtx;
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
@@ -187,11 +196,14 @@ struct wc_Sha256 {
 #ifdef WOLFSSL_CRYPTOCELL
     CRYS_HASHUserContext_t ctx;
 #endif
+#ifdef WOLFSSL_KCAPI_HASH
+    wolfssl_KCAPI_Hash kcapi;
+#endif
 #ifdef WOLF_CRYPTO_CB
     int    devId;
     void*  devCtx; /* generic crypto callback context */
 #endif
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
 };
@@ -221,7 +233,7 @@ WOLFSSL_API int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst);
 WOLFSSL_API void wc_Sha256SizeSet(wc_Sha256*, word32);
 #endif
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_Sha256SetFlags(wc_Sha256* sha256, word32 flags);
     WOLFSSL_API int wc_Sha256GetFlags(wc_Sha256* sha256, word32* flags);
 #endif
@@ -266,7 +278,7 @@ WOLFSSL_API void wc_Sha224Free(wc_Sha224*);
 WOLFSSL_API int wc_Sha224GetHash(wc_Sha224*, byte*);
 WOLFSSL_API int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst);
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_Sha224SetFlags(wc_Sha224* sha224, word32 flags);
     WOLFSSL_API int wc_Sha224GetFlags(wc_Sha224* sha224, word32* flags);
 #endif

@@ -333,6 +333,10 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->rdFd = WC_SOCK_NOTSET;
 #endif
 
+#ifdef WOLFSSL_KCAPI_RSA
+    key->handle = NULL;
+#endif
+
     return ret;
 }
 
@@ -592,6 +596,10 @@ int wc_FreeRsaKey(RsaKey* key)
         close(key->rdFd);
         key->rdFd = WC_SOCK_NOTSET;
     }
+#endif
+
+#ifdef WOLFSSL_KCAPI_RSA
+    KcapiRsa_Free(key);
 #endif
 
     return ret;
@@ -1720,7 +1728,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         word16 j;
         word16 pastSep = 0;
 
-         i = 0;
+        i = 0;
         /* Decrypted with private key - unpad must be constant time. */
         for (j = 2; j < pkcsBlockLen; j++) {
            /* Update i if not passed the separator and at separator. */
@@ -1738,7 +1746,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         invalid |= ctMaskNotEq(pkcsBlock[1], padValue);
 
         *output = (byte *)(pkcsBlock + i);
-        ret = ((int)~invalid) & (pkcsBlockLen - i);
+        ret = ((int)(byte)~invalid) & (pkcsBlockLen - i);
     }
 #endif
 
@@ -1854,6 +1862,8 @@ int wc_hash2mgf(enum wc_HashType hType)
     case WC_HASH_TYPE_MD4:
     case WC_HASH_TYPE_MD5:
     case WC_HASH_TYPE_MD5_SHA:
+    case WC_HASH_TYPE_SHA512_224:
+    case WC_HASH_TYPE_SHA512_256:
     case WC_HASH_TYPE_SHA3_224:
     case WC_HASH_TYPE_SHA3_256:
     case WC_HASH_TYPE_SHA3_384:
@@ -2192,6 +2202,32 @@ done:
     return ret;
 }
 
+#elif defined(WOLFSSL_KCAPI_RSA)
+static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
+                              word32* outLen, int type, RsaKey* key,
+                              WC_RNG* rng)
+{
+    int ret;
+
+    (void)rng;
+
+    switch(type) {
+        case RSA_PRIVATE_DECRYPT:
+        case RSA_PRIVATE_ENCRYPT:
+            ret = KcapiRsa_Decrypt(key, in, inLen, out, outLen);
+            break;
+
+        case RSA_PUBLIC_DECRYPT:
+        case RSA_PUBLIC_ENCRYPT:
+            ret = KcapiRsa_Encrypt(key, in, inLen, out, outLen);
+            break;
+
+        default:
+            ret = RSA_WRONG_TYPE_E;
+    }
+
+    return ret;
+}
 #else
 static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
@@ -3549,16 +3585,13 @@ int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
  * NULL is passed in to in or sig or inSz is not the same as the hash
  * algorithm length and 0 on success.
  */
-int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
-                              word32 sigSz, enum wc_HashType hashType,
-                              int saltLen, int bits)
+int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
+                               word32 sigSz, enum wc_HashType hashType,
+                               int saltLen, int bits, void* heap)
 {
     int ret = 0;
-#ifndef WOLFSSL_PSS_LONG_SALT
-    byte sigCheck[WC_MAX_DIGEST_SIZE*2 + RSA_PSS_PAD_SZ];
-#else
-    byte *sigCheck = NULL;
-#endif
+    byte sigCheckBuf[WC_MAX_DIGEST_SIZE*2 + RSA_PSS_PAD_SZ];
+    byte *sigCheck = sigCheckBuf;
 
     (void)bits;
 
@@ -3607,8 +3640,9 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
     }
 
 #ifdef WOLFSSL_PSS_LONG_SALT
-    if (ret == 0) {
-        sigCheck = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inSz + saltLen, NULL,
+    /* if long salt is larger then default maximum buffer then allocate a buffer */
+    if (ret == 0 && sizeof(sigCheckBuf) < (RSA_PSS_PAD_SZ + inSz + saltLen)) {
+        sigCheck = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inSz + saltLen, heap,
                                                        DYNAMIC_TYPE_RSA_BUFFER);
         if (sigCheck == NULL) {
             ret = MEMORY_E;
@@ -3632,11 +3666,21 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
     }
 
 #ifdef WOLFSSL_PSS_LONG_SALT
-    if (sigCheck != NULL) {
-        XFREE(sigCheck, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    if (sigCheck != NULL && sigCheck != sigCheckBuf) {
+        XFREE(sigCheck, heap, DYNAMIC_TYPE_RSA_BUFFER);
     }
+#else
+    (void)heap;
 #endif
+
     return ret;
+}
+int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
+                               word32 sigSz, enum wc_HashType hashType,
+                               int saltLen, int bits)
+{
+    return wc_RsaPSS_CheckPadding_ex2(in, inSz, sig, sigSz, hashType, saltLen,
+        bits, NULL);
 }
 
 
@@ -4087,7 +4131,11 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
                           const byte* eRaw, word32 eRawSz,
                           int nlen, int* isPrime, WC_RNG* rng)
 {
-    mp_int p, q, e;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *p = NULL, *q = NULL, *e = NULL;
+#else
+    mp_int p[1], q[1], e[1];
+#endif
     mp_int* Q = NULL;
     int ret;
 
@@ -4101,30 +4149,54 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
     if ((qRaw != NULL && qRawSz == 0) || (qRaw == NULL && qRawSz != 0))
         return BAD_FUNC_ARG;
 
-    ret = mp_init_multi(&p, &q, &e, NULL, NULL, NULL);
+#ifdef WOLFSSL_SMALL_STACK
+    if (((p = (mp_int *)XMALLOC(sizeof(*p), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL) ||
+        ((q = (mp_int *)XMALLOC(sizeof(*q), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL) ||
+        ((e = (mp_int *)XMALLOC(sizeof(*e), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL))
+        ret = MEMORY_E;
+    else
+        ret = 0;
+    if (ret == 0)
+#endif
+        ret = mp_init_multi(p, q, e, NULL, NULL, NULL);
 
     if (ret == MP_OKAY)
-        ret = mp_read_unsigned_bin(&p, pRaw, pRawSz);
+        ret = mp_read_unsigned_bin(p, pRaw, pRawSz);
 
     if (ret == MP_OKAY) {
         if (qRaw != NULL) {
-            ret = mp_read_unsigned_bin(&q, qRaw, qRawSz);
+            ret = mp_read_unsigned_bin(q, qRaw, qRawSz);
             if (ret == MP_OKAY)
-                Q = &q;
+                Q = q;
         }
     }
 
     if (ret == MP_OKAY)
-        ret = mp_read_unsigned_bin(&e, eRaw, eRawSz);
+        ret = mp_read_unsigned_bin(e, eRaw, eRawSz);
 
     if (ret == MP_OKAY)
-        ret = _CheckProbablePrime(&p, Q, &e, nlen, isPrime, rng);
+        ret = _CheckProbablePrime(p, Q, e, nlen, isPrime, rng);
 
     ret = (ret == MP_OKAY) ? 0 : PRIME_GEN_E;
 
-    mp_clear(&p);
-    mp_clear(&q);
-    mp_clear(&e);
+#ifdef WOLFSSL_SMALL_STACK
+    if (p) {
+        mp_clear(p);
+        XFREE(p, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    }
+    if (q) {
+        mp_clear(q);
+        XFREE(q, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    }
+    if (e) {
+        mp_clear(e);
+        XFREE(e, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    }
+#else
+    mp_clear(p);
+    mp_clear(q);
+    mp_clear(e);
+#endif
 
     return ret;
 }

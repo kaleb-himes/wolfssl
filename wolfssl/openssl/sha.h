@@ -147,9 +147,20 @@ typedef WOLFSSL_SHA256_CTX SHA256_CTX;
 #define SHA256_Final  wolfSSL_SHA256_Final
 #define SHA256_Transform wolfSSL_SHA256_Transform
 
-#if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-    /* SHA256 is only available in non-fips mode because of SHA256 enum in FIPS
-     * build. */
+/* "SHA256" has some conflicts
+ * If not FIPS and NO_OLD_SHA_NAMES defined
+ * If FIPS V3 or higher and NO_OLD_SHA_NAMES defined
+ * If FIPS V2 and NO_OLD_SHA256_NAMES defined
+ * If FIPS v1 not allowed
+ * If HAVE_SELFTEST not allowed
+ */
+#if !defined(HAVE_SELFTEST) && \
+    (defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS)) || \
+    (defined(NO_OLD_SHA_NAMES)    && defined(HAVE_FIPS) && \
+        defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 3) || \
+    (defined(NO_OLD_SHA256_NAMES) && defined(HAVE_FIPS) && \
+        defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2)
+
     #define SHA256 wolfSSL_SHA256
 #endif
 
@@ -212,6 +223,51 @@ typedef WOLFSSL_SHA512_CTX SHA512_CTX;
      * build. */
     #define SHA512 wolfSSL_SHA512
 #endif
+
+#if !defined(WOLFSSL_NOSHA512_224)
+typedef struct WOLFSSL_SHA512_CTX WOLFSSL_SHA512_224_CTX;
+typedef WOLFSSL_SHA512_224_CTX SHA512_224_CTX;
+
+WOLFSSL_API int wolfSSL_SHA512_224_Init(WOLFSSL_SHA512_CTX*);
+WOLFSSL_API int wolfSSL_SHA512_224_Update(WOLFSSL_SHA512_CTX*, const void*,
+                                     unsigned long);
+WOLFSSL_API int wolfSSL_SHA512_224_Final(unsigned char*, WOLFSSL_SHA512_CTX*);
+WOLFSSL_API int wolfSSL_SHA512_224_Transform(WOLFSSL_SHA512_CTX*, 
+                                        const unsigned char*);
+
+
+#define SHA512_224_Init   wolfSSL_SHA512_224_Init
+#define SHA512_224_Update wolfSSL_SHA512_224_Update
+#define SHA512_224_Final  wolfSSL_SHA512_224_Final
+#define SHA512_224_Transform wolfSSL_SHA512_224_Transform
+
+#if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    #define SHA512_224 wolfSSL_SHA512_224
+#endif
+#endif /* !WOLFSSL_NOSHA512_224 */
+
+#if !defined(WOLFSSL_NOSHA512_256)
+typedef struct WOLFSSL_SHA512_CTX WOLFSSL_SHA512_256_CTX;
+typedef WOLFSSL_SHA512_256_CTX SHA512_256_CTX;
+
+WOLFSSL_API int wolfSSL_SHA512_256_Init(WOLFSSL_SHA512_CTX*);
+WOLFSSL_API int wolfSSL_SHA512_256_Update(WOLFSSL_SHA512_CTX*, const void*,
+                                     unsigned long);
+WOLFSSL_API int wolfSSL_SHA512_256_Final(unsigned char*, WOLFSSL_SHA512_CTX*);
+WOLFSSL_API int wolfSSL_SHA512_256_Transform(WOLFSSL_SHA512_CTX*, 
+                                        const unsigned char*);
+
+#define SHA512_256_Init   wolfSSL_SHA512_256_Init
+#define SHA512_256_Update wolfSSL_SHA512_256_Update
+#define SHA512_256_Final  wolfSSL_SHA512_256_Final
+#define SHA512_256_Transform wolfSSL_SHA512_256_Transform
+
+#if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    #define SHA512_256 wolfSSL_SHA512_256
+#endif
+#endif /* !WOLFSSL_NOSHA512_256 */
+
+
 #endif /* WOLFSSL_SHA512 */
 
 

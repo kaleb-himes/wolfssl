@@ -62,6 +62,14 @@
     #include <wolfssl/wolfcrypt/port/silabs/silabs_ecc.h>
 #endif
 
+#if defined(WOLFSSL_KCAPI_ECC)
+    #include <wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h>
+#endif
+
+#ifdef WOLFSSL_SE050
+    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
+
 #ifdef WOLFSSL_HAVE_SP_ECC
     #include <wolfssl/wolfcrypt/sp_int.h>
 #endif
@@ -164,7 +172,11 @@ enum {
         CRYPTOCELL_KEY_SIZE = ECC_MAXSIZE,
     #endif
     ECC_MAX_CRYPTO_HW_SIZE = CRYPTOCELL_KEY_SIZE,
+#elif defined(WOLFSSL_SE050)
+    ECC_MAX_CRYPTO_HW_SIZE = 32,
+    ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = 64,
 #endif
+
 
     /* point compression type */
     ECC_POINT_COMP_EVEN = 0x02,
@@ -180,6 +192,10 @@ enum {
 #endif
 };
 
+#endif /* HAVE_ECC */
+
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+    defined(HAVE_CURVE448) || defined(WOLFCRYPT_HAVE_SAKKE)
 /* Curve Types */
 typedef enum ecc_curve_id {
     ECC_CURVE_INVALID = -1,
@@ -227,7 +243,6 @@ typedef enum ecc_curve_id {
 #ifdef HAVE_CURVE448
     ECC_X448,
 #endif
-
 #ifdef WOLFCRYPT_HAVE_SAKKE
     ECC_SAKKE_1,
 #endif
@@ -237,6 +252,9 @@ typedef enum ecc_curve_id {
 #endif
     ECC_CURVE_MAX
 } ecc_curve_id;
+#endif
+
+#ifdef HAVE_ECC
 
 #ifdef HAVE_OID_ENCODING
 typedef word16 ecc_oid_t;
@@ -426,6 +444,9 @@ struct ecc_key {
     word32 securePubKey; /* address of public key in secure memory */
     int    partNum; /* partition number*/
 #endif
+#ifdef WOLFSSL_SE050
+    int keyId;
+#endif
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     int  slot;        /* Key Slot Number (-1 unknown) */
     byte pubkey_raw[ECC_MAX_CRYPTO_HW_PUBKEY_SIZE];
@@ -441,6 +462,10 @@ struct ecc_key {
      * offset `keysize`, and offset `2 * keysize`.
      */
     byte key_raw[3 * ECC_MAX_CRYPTO_HW_SIZE];
+#endif
+#ifdef WOLFSSL_KCAPI_ECC
+    struct kcapi_handle* handle;
+    byte pubkey_raw[KCAPI_PARAM_SZ + MAX_ECC_BYTES * 2];
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT

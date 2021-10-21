@@ -345,6 +345,13 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 
     WOLFSSL_ENTER("CheckCertCRL");
 
+#ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
+    /* Skip CRL verification in case no CDP in peer cert */
+    if (!cert->extCrlInfo) {
+        return ret;
+    }
+#endif
+
     ret = CheckCertCRLList(crl, cert, &foundEntry);
 
 #ifdef HAVE_CRL_IO
@@ -385,7 +392,9 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 #endif
     if (foundEntry == 0) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
-        ret = CRL_MISSING;
+        if (ret != CRL_CERT_DATE_ERR) {
+            ret = CRL_MISSING;
+        }
 
         if (crl->cm->cbMissingCRL) {
             char url[256];

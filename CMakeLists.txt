@@ -1015,8 +1015,6 @@ endif()
 #       - CRL
 #       - CRL monitor
 #       - User crypto
-#       - NTRU
-#       - QSH
 #       - Whitewood netRandom client library
 #       - SNI
 #       - Max fragment length
@@ -1236,8 +1234,11 @@ else()
     set(CRYPT_TESTS_DEFAULT "yes")
 endif()
 
-set(WOLFSSL_CRYPT_TESTS_HELP_STRING "Enable Crypt Bench/Test  (default: enabled)")
+set(WOLFSSL_CRYPT_TESTS_HELP_STRING "Enable Crypt Bench/Test (default: enabled)")
 add_option("WOLFSSL_CRYPT_TESTS" ${WOLFSSL_CRYPT_TESTS_HELP_STRING} ${CRYPT_TESTS_DEFAULT} "yes;no")
+
+set(WOLFSSL_CRYPT_TESTS_LIBS_HELP_STRING "Build static libraries from the wolfCrypt test and benchmark sources (default: disabled)")
+add_option("WOLFSSL_CRYPT_TESTS_LIBS" ${WOLFSSL_CRYPT_TESTS_LIBS_HELP_STRING} "no" "yes;no")
 
 # TODO: - LIBZ
 #       - PKCS#11
@@ -1369,35 +1370,12 @@ file(APPEND ${OPTION_FILE} "#ifdef __cplusplus\n")
 file(APPEND ${OPTION_FILE} "extern \"C\" {\n")
 file(APPEND ${OPTION_FILE} "#endif\n\n")
 
-list(REMOVE_DUPLICATES WOLFSSL_DEFINITIONS)
-
-foreach(DEF IN LISTS WOLFSSL_DEFINITIONS)
-    if(DEF MATCHES "^-D")
-        if(DEF MATCHES "^-D(N)?DEBUG(=.+)?")
-            message("not outputting (N)DEBUG to ${OPTION_FILE}")
-        endif()
-
-        # allow user to ignore system options
-        if(DEF MATCHES "^-D_.*")
-            file(APPEND ${OPTION_FILE} "#ifndef WOLFSSL_OPTIONS_IGNORE_SYS\n")
-        endif()
-
-        string(REGEX REPLACE "^-D" "" DEF_NO_PREFIX ${DEF})
-        string(REGEX REPLACE "=.*$" "" DEF_NO_EQUAL_NO_VAL ${DEF_NO_PREFIX})
-        string(REPLACE "=" " " DEF_NO_EQUAL ${DEF_NO_PREFIX})
-
-        file(APPEND ${OPTION_FILE} "#undef  ${DEF_NO_EQUAL_NO_VAL}\n")
-        file(APPEND ${OPTION_FILE} "#define ${DEF_NO_EQUAL}\n")
-
-        if(DEF MATCHES "^-D_.*")
-            file(APPEND ${OPTION_FILE} "#endif\n")
-        endif()
-
-        file(APPEND ${OPTION_FILE} "\n")
-    else()
-        message("option w/o begin -D is ${DEF}, not saving to ${OPTION_FILE}")
-    endif()
-endforeach()
+add_to_options_file("${WOLFSSL_DEFINITIONS}" "${OPTION_FILE}")
+# CMAKE_C_FLAGS is just a string of space-separated flags to pass to the C
+# compiler. We need to replace those spaces with semicolons in order to treat it
+# as a CMake list.
+string(REPLACE " " ";" CMAKE_C_FLAGS_LIST "${CMAKE_C_FLAGS}")
+add_to_options_file("${CMAKE_C_FLAGS_LIST}" "${OPTION_FILE}")
 
 file(APPEND ${OPTION_FILE} "\n#ifdef __cplusplus\n")
 file(APPEND ${OPTION_FILE} "}\n")
@@ -1535,7 +1513,27 @@ if(WOLFSSL_EXAMPLES)
 endif()
 
 if(WOLFSSL_CRYPT_TESTS)
-    # Build wolfCrypt test
+    if(WOLFSSL_CRYPT_TESTS_LIBS)
+        # Build wolfCrypt test as a library. This will compile test.c and make
+        # its functions available as a CMake target that other CMake targets can
+        # pull in, in addition to producing the library itself. Note that this
+        # feature is not enabled by default, and the API of this library and
+        # wofcryptbench_lib should NOT be treated as stable.
+        add_library(wolfcrypttest_lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/test/test.c)
+        set_target_properties(wolfcrypttest_lib PROPERTIES OUTPUT_NAME "wolfcrypttest")
+        target_link_libraries(wolfcrypttest_lib wolfssl)
+        target_compile_options(wolfcrypttest_lib PRIVATE "-DNO_MAIN_DRIVER")
+
+        # Make another library for the wolfCrypt benchmark code.
+        add_library(wolfcryptbench_lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/benchmark/benchmark.c)
+        set_target_properties(wolfcryptbench_lib PROPERTIES OUTPUT_NAME "wolfcryptbench")
+        target_link_libraries(wolfcryptbench_lib wolfssl)
+        target_compile_options(wolfcryptbench_lib PRIVATE "-DNO_MAIN_DRIVER")
+    endif()
+
+    # Build wolfCrypt test executable.
     add_executable(wolfcrypttest
         ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/test/test.c)
     target_link_libraries(wolfcrypttest wolfssl)
@@ -1546,7 +1544,7 @@ if(WOLFSSL_CRYPT_TESTS)
                  PROPERTY RUNTIME_OUTPUT_NAME
                  testwolfcrypt)
 
-    # Build wolfCrypt benchmark
+    # Build wolfCrypt benchmark executable.
     add_executable(wolfcryptbench
         ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/benchmark/benchmark.c)
     target_include_directories(wolfcryptbench PRIVATE

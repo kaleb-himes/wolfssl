@@ -1886,14 +1886,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         status_t status;
         status = TRNG_GetRandomData(TRNG0, output, sz);
+        (void)os;
         if (status == kStatus_Success)
         {
             return(0);
         }
-        else
-        {
-            return RAN_BLOCK_E;
-        }
+        return RAN_BLOCK_E;
     }
 
 #elif defined(FREESCALE_KSDK_2_0_RNGA)
@@ -1902,14 +1900,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         status_t status;
         status = RNGA_GetRandomData(RNG, output, sz);
+        (void)os;
         if (status == kStatus_Success)
         {
             return(0);
         }
-        else
-        {
-            return RAN_BLOCK_E;
-        }
+        return RAN_BLOCK_E;
     }
 
 
@@ -1917,8 +1913,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        RNGA_DRV_GetRandomData(RNGA_INSTANCE, output, sz);
-        return 0;
+        status_t status;
+        status = RNGA_GetRandomData(RNG, output, sz);
+        (void)os;
+        if (status == kStatus_Success)
+        {
+            return(0);
+        }
+        return RAN_BLOCK_E;
     }
 
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
@@ -2520,7 +2522,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LEANPSK) || \
       defined(WOLFSSL_IAR_ARM)  || defined(WOLFSSL_MDK_ARM) || \
       defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2) || \
-      defined(WOLFSSL_LPC43xx)  || defined(WOLFSSL_STM32F2xx) || \
+      defined(WOLFSSL_LPC43xx)  || defined(NO_STM32_RNG) || \
       defined(MBED)             || defined(WOLFSSL_EMBOS) || \
       defined(WOLFSSL_GENSEED_FORTEST) || defined(WOLFSSL_CHIBIOS) || \
       defined(WOLFSSL_CONTIKI)  || defined(WOLFSSL_AZSPHERE)
@@ -2572,6 +2574,24 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
             return 0;
         }
+#elif defined(WOLFSSL_SE050)
+     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+    
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz){
+        int ret = 0;
+        
+        (void)os;
+        
+        if (output == NULL) {
+            return BUFFER_E;
+        }
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            ret = se050_get_random_number(sz, output);
+            wolfSSL_CryptHwMutexUnLock();
+        }
+        return ret;
+    }
 
 #elif defined(DOLPHIN_EMULATOR)
 

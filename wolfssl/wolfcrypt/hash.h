@@ -170,7 +170,7 @@ WOLFSSL_API int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type,
     byte* out);
 WOLFSSL_API int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type,
         word32 flags);
     WOLFSSL_API int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type,
@@ -205,6 +205,8 @@ WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
 #ifdef WOLFSSL_SHA512
 #include <wolfssl/wolfcrypt/sha512.h>
 WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
+WOLFSSL_API int wc_Sha512_224Hash(const byte*, word32, byte*);
+WOLFSSL_API int wc_Sha512_256Hash(const byte*, word32, byte*);
 #endif /* WOLFSSL_SHA512 */
 
 #ifdef WOLFSSL_SHA3

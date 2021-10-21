@@ -194,9 +194,6 @@ const char* wc_GetErrorString(int error)
     case ASN_DH_KEY_E :
         return "ASN key init error, invalid input";
 
-    case ASN_NTRU_KEY_E :
-        return "ASN NTRU key decode error, invalid input";
-
     case ASN_CRIT_EXT_E:
         return "X.509 Critical extension ignored or invalid";
 
@@ -259,6 +256,9 @@ const char* wc_GetErrorString(int error)
 
     case ASN_CRL_NO_SIGNER_E :
         return "ASN CRL no signer error to confirm failure";
+
+    case CRL_CERT_DATE_ERR:
+        return "CRL date error";
 
     case ASN_OCSP_CONFIRM_E :
         return "ASN OCSP sig error, confirm failure";

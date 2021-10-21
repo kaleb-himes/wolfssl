@@ -50,7 +50,7 @@
 #ifdef WOLFSSL_SP_X86_64_ASM
 #define SP_PRINT_NUM(var, name, total, words, bits)     \
     do {                                                \
-        int ii                                          \
+        int ii;                                         \
         fprintf(stderr, name "=0x");                    \
         for (ii = words - 1; ii >= 0; ii--)             \
             fprintf(stderr, SP_PRINT_FMT, (var)[ii]);   \
@@ -1956,10 +1956,17 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
     mp_int* res)
 {
     int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit *b = NULL;
+    sp_digit *e = NULL;
+    sp_digit *m = NULL;
+    sp_digit* r;
+#else
     sp_digit b[64];
     sp_digit e[32];
     sp_digit m[32];
     sp_digit* r = b;
+#endif
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
@@ -1972,6 +1979,19 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
     else if (mp_iseven(mod)) {
         err = MP_VAL;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        if (((b = (sp_digit *)XMALLOC(64 * sizeof(*b), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((e = (sp_digit *)XMALLOC(32 * sizeof(*e), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((m = (sp_digit *)XMALLOC(32 * sizeof(*m), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
+        {
+            err = MEMORY_E;
+        } else {
+            r = b;
+        }
+    }
+#endif
 
     if (err == MP_OKAY) {
         sp_2048_from_mp(b, 32, base);
@@ -1990,7 +2010,18 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_2048_to_mp(r, res);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (b != NULL)
+        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e != NULL) {
+        XMEMSET(e, 0, 32);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (m != NULL)
+        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     XMEMSET(e, 0, sizeof(e));
+#endif
 
     return err;
 }
@@ -2266,10 +2297,17 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
     const mp_int* mod, byte* out, word32* outLen)
 {
     int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit *b = NULL;
+    sp_digit *e = NULL;
+    sp_digit *m = NULL;
+    sp_digit* r;
+#else
     sp_digit b[64];
     sp_digit e[32];
     sp_digit m[32];
     sp_digit* r = b;
+#endif
     word32 i;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
@@ -2282,6 +2320,19 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
     else if (mp_iseven(mod)) {
         err = MP_VAL;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        if (((b = (sp_digit *)XMALLOC(64 * sizeof(*b), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((e = (sp_digit *)XMALLOC(32 * sizeof(*e), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((m = (sp_digit *)XMALLOC(32 * sizeof(*m), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
+        {
+            err = MEMORY_E;
+        } else {
+            r = b;
+        }
+    }
+#endif
 
     if (err == MP_OKAY) {
         sp_2048_from_mp(b, 32, base);
@@ -2319,7 +2370,18 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
         XMEMMOVE(out, out + i, *outLen);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (b != NULL)
+        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e != NULL) {
+        XMEMSET(e, 0, 32);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (m != NULL)
+        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     XMEMSET(e, 0, sizeof(e));
+#endif
 
     return err;
 }
@@ -2337,10 +2399,17 @@ int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
     mp_int* res)
 {
     int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit *b = NULL;
+    sp_digit *e = NULL;
+    sp_digit *m = NULL;
+    sp_digit* r;
+#else
     sp_digit b[32];
     sp_digit e[16];
     sp_digit m[16];
     sp_digit* r = b;
+#endif
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
@@ -2353,6 +2422,19 @@ int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
     else if (mp_iseven(mod)) {
         err = MP_VAL;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        if (((b = (sp_digit *)XMALLOC(32 * sizeof(*b), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((e = (sp_digit *)XMALLOC(16 * sizeof(*e), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((m = (sp_digit *)XMALLOC(16 * sizeof(*m), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
+        {
+            err = MEMORY_E;
+        } else {
+            r = b;
+        }
+    }
+#endif
 
     if (err == MP_OKAY) {
         sp_2048_from_mp(b, 16, base);
@@ -2372,7 +2454,18 @@ int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_2048_to_mp(r, res);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (b != NULL)
+        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e != NULL) {
+        XMEMSET(e, 0, 16);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (m != NULL)
+        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     XMEMSET(e, 0, sizeof(e));
+#endif
 
     return err;
 }
@@ -4287,10 +4380,17 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
     mp_int* res)
 {
     int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit *b = NULL;
+    sp_digit *e = NULL;
+    sp_digit *m = NULL;
+    sp_digit* r;
+#else
     sp_digit b[96];
     sp_digit e[48];
     sp_digit m[48];
     sp_digit* r = b;
+#endif
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
@@ -4303,6 +4403,19 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
     else if (mp_iseven(mod)) {
         err = MP_VAL;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        if (((b = (sp_digit *)XMALLOC(96 * sizeof(*b), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((e = (sp_digit *)XMALLOC(48 * sizeof(*e), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((m = (sp_digit *)XMALLOC(48 * sizeof(*m), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
+        {
+            err = MEMORY_E;
+        } else {
+            r = b;
+        }
+    }
+#endif
 
     if (err == MP_OKAY) {
         sp_3072_from_mp(b, 48, base);
@@ -4321,7 +4434,18 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_3072_to_mp(r, res);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (b != NULL)
+        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e != NULL) {
+        XMEMSET(e, 0, 48);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (m != NULL)
+        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     XMEMSET(e, 0, sizeof(e));
+#endif
 
     return err;
 }
@@ -4597,10 +4721,17 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
     const mp_int* mod, byte* out, word32* outLen)
 {
     int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit *b = NULL;
+    sp_digit *e = NULL;
+    sp_digit *m = NULL;
+    sp_digit* r;
+#else
     sp_digit b[96];
     sp_digit e[48];
     sp_digit m[48];
     sp_digit* r = b;
+#endif
     word32 i;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
@@ -4613,6 +4744,19 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
     else if (mp_iseven(mod)) {
         err = MP_VAL;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        if (((b = (sp_digit *)XMALLOC(96 * sizeof(*b), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((e = (sp_digit *)XMALLOC(48 * sizeof(*e), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((m = (sp_digit *)XMALLOC(48 * sizeof(*m), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
+        {
+            err = MEMORY_E;
+        } else {
+            r = b;
+        }
+    }
+#endif
 
     if (err == MP_OKAY) {
         sp_3072_from_mp(b, 48, base);
@@ -4650,7 +4794,18 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
         XMEMMOVE(out, out + i, *outLen);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (b != NULL)
+        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e != NULL) {
+        XMEMSET(e, 0, 48);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (m != NULL)
+        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     XMEMSET(e, 0, sizeof(e));
+#endif
 
     return err;
 }
@@ -4668,10 +4823,17 @@ int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
     mp_int* res)
 {
     int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit *b = NULL;
+    sp_digit *e = NULL;
+    sp_digit *m = NULL;
+    sp_digit* r;
+#else
     sp_digit b[48];
     sp_digit e[24];
     sp_digit m[24];
     sp_digit* r = b;
+#endif
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
@@ -4684,6 +4846,19 @@ int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
     else if (mp_iseven(mod)) {
         err = MP_VAL;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        if (((b = (sp_digit *)XMALLOC(48 * sizeof(*b), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((e = (sp_digit *)XMALLOC(24 * sizeof(*e), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((m = (sp_digit *)XMALLOC(24 * sizeof(*m), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
+        {
+            err = MEMORY_E;
+        } else {
+            r = b;
+        }
+    }
+#endif
 
     if (err == MP_OKAY) {
         sp_3072_from_mp(b, 24, base);
@@ -4703,7 +4878,18 @@ int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_3072_to_mp(r, res);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (b != NULL)
+        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e != NULL) {
+        XMEMSET(e, 0, 24);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (m != NULL)
+        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     XMEMSET(e, 0, sizeof(e));
+#endif
 
     return err;
 }
@@ -6016,10 +6202,17 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
     mp_int* res)
 {
     int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit *b = NULL;
+    sp_digit *e = NULL;
+    sp_digit *m = NULL;
+    sp_digit* r;
+#else
     sp_digit b[128];
     sp_digit e[64];
     sp_digit m[64];
     sp_digit* r = b;
+#endif
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
@@ -6032,6 +6225,19 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
     else if (mp_iseven(mod)) {
         err = MP_VAL;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        if (((b = (sp_digit *)XMALLOC(128 * sizeof(*b), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((e = (sp_digit *)XMALLOC(64 * sizeof(*e), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((m = (sp_digit *)XMALLOC(64 * sizeof(*m), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
+        {
+            err = MEMORY_E;
+        } else {
+            r = b;
+        }
+    }
+#endif
 
     if (err == MP_OKAY) {
         sp_4096_from_mp(b, 64, base);
@@ -6050,7 +6256,18 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_4096_to_mp(r, res);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (b != NULL)
+        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e != NULL) {
+        XMEMSET(e, 0, 64);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (m != NULL)
+        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     XMEMSET(e, 0, sizeof(e));
+#endif
 
     return err;
 }
@@ -6326,10 +6543,17 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
     const mp_int* mod, byte* out, word32* outLen)
 {
     int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit *b = NULL;
+    sp_digit *e = NULL;
+    sp_digit *m = NULL;
+    sp_digit* r;
+#else
     sp_digit b[128];
     sp_digit e[64];
     sp_digit m[64];
     sp_digit* r = b;
+#endif
     word32 i;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
@@ -6342,6 +6566,19 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
     else if (mp_iseven(mod)) {
         err = MP_VAL;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        if (((b = (sp_digit *)XMALLOC(128 * sizeof(*b), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((e = (sp_digit *)XMALLOC(64 * sizeof(*e), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((m = (sp_digit *)XMALLOC(64 * sizeof(*m), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
+        {
+            err = MEMORY_E;
+        } else {
+            r = b;
+        }
+    }
+#endif
 
     if (err == MP_OKAY) {
         sp_4096_from_mp(b, 64, base);
@@ -6379,7 +6616,18 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
         XMEMMOVE(out, out + i, *outLen);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (b != NULL)
+        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e != NULL) {
+        XMEMSET(e, 0, 64);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (m != NULL)
+        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     XMEMSET(e, 0, sizeof(e));
+#endif
 
     return err;
 }
@@ -23957,16 +24205,18 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
         sp_256_mod_inv_4(s, s, p256_order);
     }
 #endif /* !WOLFSSL_SP_SMALL */
-#ifdef HAVE_INTEL_AVX2
-    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
-        sp_256_mul_avx2_4(s, s, p256_norm_order);
-    }
-    else
-#endif
     {
-        sp_256_mul_4(s, s, p256_norm_order);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            sp_256_mul_avx2_4(s, s, p256_norm_order);
+        }
+        else
+#endif
+        {
+            sp_256_mul_4(s, s, p256_norm_order);
+        }
+        err = sp_256_mod_4(s, s, p256_order);
     }
-    err = sp_256_mod_4(s, s, p256_order);
     if (err == MP_OKAY) {
         sp_256_norm_4(s);
 #ifdef WOLFSSL_SP_SMALL
@@ -23983,7 +24233,6 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
             sp_256_mont_mul_order_4(u1, u1, s);
             sp_256_mont_mul_order_4(u2, u2, s);
         }
-
 #else
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
@@ -23996,14 +24245,16 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
             sp_256_mont_mul_order_4(u1, u1, s);
             sp_256_mont_mul_order_4(u2, u2, s);
         }
-
 #endif /* WOLFSSL_SP_SMALL */
 #ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             err = sp_256_ecc_mulmod_base_avx2_4(p1, u1, 0, 0, heap);
+        }
         else
 #endif
+        {
             err = sp_256_ecc_mulmod_base_4(p1, u1, 0, 0, heap);
+        }
     }
     if ((err == MP_OKAY) && sp_256_iszero_4(p1->z)) {
         p1->infinity = 1;
@@ -48535,20 +48786,21 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
 #endif
 
 #ifndef WOLFSSL_SP_SMALL
-    {
-        sp_384_mod_inv_6(s, s, p384_order);
-    }
+    err = sp_384_mod_inv_6(s, s, p384_order);
+    if (err == MP_OKAY)
 #endif /* !WOLFSSL_SP_SMALL */
-#ifdef HAVE_INTEL_AVX2
-    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
-        sp_384_mul_avx2_6(s, s, p384_norm_order);
-    }
-    else
-#endif
     {
-        sp_384_mul_6(s, s, p384_norm_order);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            sp_384_mul_avx2_6(s, s, p384_norm_order);
+        }
+        else
+#endif
+        {
+            sp_384_mul_6(s, s, p384_norm_order);
+        }
+        err = sp_384_mod_6(s, s, p384_order);
     }
-    err = sp_384_mod_6(s, s, p384_order);
     if (err == MP_OKAY) {
         sp_384_norm_6(s);
 #ifdef WOLFSSL_SP_SMALL
@@ -48565,7 +48817,6 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
             sp_384_mont_mul_order_6(u1, u1, s);
             sp_384_mont_mul_order_6(u2, u2, s);
         }
-
 #else
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
@@ -48578,14 +48829,16 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
             sp_384_mont_mul_order_6(u1, u1, s);
             sp_384_mont_mul_order_6(u2, u2, s);
         }
-
 #endif /* WOLFSSL_SP_SMALL */
 #ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             err = sp_384_ecc_mulmod_base_avx2_6(p1, u1, 0, 0, heap);
+        }
         else
 #endif
+        {
             err = sp_384_ecc_mulmod_base_6(p1, u1, 0, 0, heap);
+        }
     }
     if ((err == MP_OKAY) && sp_384_iszero_6(p1->z)) {
         p1->infinity = 1;

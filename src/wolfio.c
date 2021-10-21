@@ -477,24 +477,17 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
     return sz;
 }
+#endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_SESSION_EXPORT
 
-    /* get the peer information in human readable form (ip, port, family)
-     * default function assumes BSD sockets
-     * can be overridden with wolfSSL_CTX_SetIOGetPeer
-     */
-    int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
+#ifdef WOLFSSL_DTLS
+    static int EmbedGetPeerDTLS(WOLFSSL* ssl, char* ip, int* ipSz,
                                                  unsigned short* port, int* fam)
     {
         SOCKADDR_S peer;
         word32     peerSz;
         int        ret;
-
-        if (ssl == NULL || ip == NULL || ipSz == NULL ||
-                                                  port == NULL || fam == NULL) {
-            return BAD_FUNC_ARG;
-        }
 
         /* get peer information stored in ssl struct */
         peerSz = sizeof(SOCKADDR_S);
@@ -536,18 +529,14 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         return WOLFSSL_SUCCESS;
     }
 
-    /* set the peer information in human readable form (ip, port, family)
-     * default function assumes BSD sockets
-     * can be overridden with wolfSSL_CTX_SetIOSetPeer
-     */
-    int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
+    static int EmbedSetPeerDTLS(WOLFSSL* ssl, char* ip, int ipSz,
                                                    unsigned short port, int fam)
     {
         int    ret;
         SOCKADDR_S addr;
 
         /* sanity checks on arguments */
-        if (ssl == NULL || ip == NULL || ipSz < 0 || ipSz > DTLS_EXPORT_IP) {
+        if (ssl == NULL || ip == NULL || ipSz < 0 || ipSz > MAX_EXPORT_IP) {
             return BAD_FUNC_ARG;
         }
 
@@ -594,8 +583,62 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
         return WOLFSSL_SUCCESS;
     }
+#endif
+
+    /* get the peer information in human readable form (ip, port, family)
+     * default function assumes BSD sockets
+     * can be overridden with wolfSSL_CTX_SetIOGetPeer
+     */
+    int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
+                                                 unsigned short* port, int* fam)
+    {
+        if (ssl == NULL || ip == NULL || ipSz == NULL ||
+                                                  port == NULL || fam == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        if (ssl->options.dtls) {
+        #ifdef WOLFSSL_DTLS
+            return EmbedGetPeerDTLS(ssl, ip, ipSz, port, fam);
+        #else
+            return NOT_COMPILED_IN;
+        #endif
+        }
+        else {
+            *port = wolfSSL_get_fd(ssl);
+            ip[0] = '\0';
+            *ipSz = 0;
+            *fam  = 0;
+            return WOLFSSL_SUCCESS;
+        }
+    }
+
+    /* set the peer information in human readable form (ip, port, family)
+     * default function assumes BSD sockets
+     * can be overridden with wolfSSL_CTX_SetIOSetPeer
+     */
+    int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
+                                                   unsigned short port, int fam)
+    {
+        /* sanity checks on arguments */
+        if (ssl == NULL || ip == NULL || ipSz < 0 || ipSz > MAX_EXPORT_IP) {
+            return BAD_FUNC_ARG;
+        }
+
+        if (ssl->options.dtls) {
+        #ifdef WOLFSSL_DTLS
+            return EmbedSetPeerDTLS(ssl, ip, ipSz, port, fam);
+        #else
+            return NOT_COMPILED_IN;
+        #endif
+        }
+        else {
+            wolfSSL_set_fd(ssl, port);
+            (void)fam;
+            return WOLFSSL_SUCCESS;
+        }
+    }
 #endif /* WOLFSSL_SESSION_EXPORT */
-#endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_LINUXKM
 static int linuxkm_send(struct socket *socket, void *buf, int size,
@@ -765,7 +808,9 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     ADDRINFO* answer = NULL;
     char strPort[6];
 #else
+#if !defined(WOLFSSL_USE_POPEN_HOST)
     HOSTENT* entry;
+#endif
     SOCKADDR_IN *sin;
 #endif
 
@@ -799,6 +844,68 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     sockaddr_len = answer->ai_addrlen;
     XMEMCPY(&addr, answer->ai_addr, sockaddr_len);
     freeaddrinfo(answer);
+#elif defined(WOLFSSL_USE_POPEN_HOST)
+    {
+        char host_ipaddr[4] = { 127, 0, 0, 1 };
+        int found = 1;
+
+        if ((XSTRNCMP(ip, "localhost", 10) != 0) &&
+            (XSTRNCMP(ip, "127.0.0.1", 10) != 0)) {
+            FILE* fp;
+            char host_out[100];
+            char cmd[100];
+
+            XSTRNCPY(cmd, "host ", 6);
+            XSTRNCAT(cmd, ip, 99 - XSTRLEN(cmd));
+            found = 0;
+            fp = popen(cmd, "r");
+            if (fp != NULL) {
+                while (fgets(host_out, sizeof(host_out), fp) != NULL) {
+                    int i;
+                    int j = 0;
+                    for (j = 0; host_out[j] != '\0'; j++) {
+                        if ((host_out[j] >= '0') && (host_out[j] <= '9')) {
+                            break;
+                        }
+                    }
+                    found = (host_out[j] >= '0') && (host_out[j] <= '9');
+                    if (!found) {
+                        continue;
+                    }
+
+                    for (i = 0; i < 4; i++) {
+                        host_ipaddr[i] = atoi(host_out + j);
+                        while ((host_out[j] >= '0') && (host_out[j] <= '9')) {
+                            j++;
+                        }
+                        if (host_out[j] == '.') {
+                            j++;
+                            found &= (i != 3);
+                        }
+                        else {
+                            found &= (i == 3);
+                            break;
+                        }
+                    }
+                    if (found) {
+                        break;
+                    }
+                }
+                pclose(fp);
+            }
+        }
+        if (found) {
+            sin = (SOCKADDR_IN *)&addr;
+
+            sin->sin_family = AF_INET;
+            sin->sin_port = XHTONS(port);
+            XMEMCPY(&sin->sin_addr.s_addr, host_ipaddr, sizeof(host_ipaddr));
+        }
+        else {
+            WOLFSSL_MSG("no addr info for responder");
+            return -1;
+        }
+    }
 #else
     entry = gethostbyname(ip);
     sin = (SOCKADDR_IN *)&addr;
@@ -1138,7 +1245,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                 }
 
                 WOLFSSL_MSG("wolfIO_HttpProcessResponse recv http from peer failed");
-                return -1;
+                return HTTP_RECV_ERR;
             }
         }
         end = XSTRSTR(start, "\r\n"); /* locate end */
@@ -1158,7 +1265,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
              }
              else {
                 WOLFSSL_MSG("wolfIO_HttpProcessResponse header ended early");
-                return -1;
+                return HTTP_HEADER_ERR;
              }
         }
         else {
@@ -1176,13 +1283,13 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                     if (XSTRLEN(start) < 12) {
                         WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header "
                             "too short.");
-                        return -1;
+                        return HTTP_HEADER_ERR;
                     }
                     if (XSTRNCASECMP(start, HTTP_PROTO,
                                      sizeof(HTTP_PROTO) - 1) != 0) {
                         WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header "
                             "doesn't start with HTTP/1.");
-                        return -1;
+                        return HTTP_PROTO_ERR;
                     }
                     /* +2 for HTTP minor version and space between version and
                      * status code. */
@@ -1191,7 +1298,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                                      sizeof(HTTP_STATUS_200) - 1) != 0) {
                         WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header "
                             "doesn't have status code 200.");
-                        return -1;
+                        return HTTP_STATUS_ERR;
                     }
                     state = phr_http_start;
                     break;
@@ -1201,7 +1308,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                     if (XSTRLEN(start) < 13) { /* 13 is the shortest of the following
                                           next lines we're checking for. */
                         WOLFSSL_MSG("wolfIO_HttpProcessResponse content type is too short.");
-                        return -1;
+                        return HTTP_VERSION_ERR;
                     }
 
                     if (XSTRNCASECMP(start, "Content-Type:", 13) == 0) {
@@ -1221,7 +1328,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                         }
                         if (appStrList[i] == NULL) {
                             WOLFSSL_MSG("wolfIO_HttpProcessResponse appstr mismatch");
-                            return -1;
+                            return HTTP_APPSTR_ERR;
                         }
                         state = (state == phr_http_start) ? phr_have_type : phr_wait_end;
                     }
@@ -1510,7 +1617,7 @@ int wolfIO_HttpBuildRequestCrl(const char* url, int urlSz,
 int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
     int httpBufSz)
 {
-    int result;
+    int ret;
     byte *respBuf = NULL;
 
     const char* appStrList[] = {
@@ -1519,14 +1626,15 @@ int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
         NULL
     };
 
-    result = wolfIO_HttpProcessResponse(sfd, appStrList,
+
+    ret = wolfIO_HttpProcessResponse(sfd, appStrList,
         &respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_CRL, crl->heap);
-    if (result >= 0) {
-        result = BufferLoadCRL(crl, respBuf, result, WOLFSSL_FILETYPE_ASN1, 0);
+    if (ret >= 0) {
+        ret = BufferLoadCRL(crl, respBuf, ret, WOLFSSL_FILETYPE_ASN1, 0);
     }
     XFREE(respBuf, crl->heap, DYNAMIC_TYPE_CRL);
 
-    return result;
+    return ret;
 }
 
 int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
@@ -1707,6 +1815,7 @@ void* wolfSSL_GetCookieCtx(WOLFSSL* ssl)
 
     return NULL;
 }
+#endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_SESSION_EXPORT
 
@@ -1724,7 +1833,6 @@ void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX* ctx, CallbackSetPeer cb)
 }
 
 #endif /* WOLFSSL_SESSION_EXPORT */
-#endif /* WOLFSSL_DTLS */
 
 
 #ifdef HAVE_NETX

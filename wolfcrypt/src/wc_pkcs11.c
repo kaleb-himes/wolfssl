@@ -27,7 +27,9 @@
 
 #ifdef HAVE_PKCS11
 
+#ifndef HAVE_PKCS11_STATIC
 #include <dlfcn.h>
+#endif
 
 #include <wolfssl/wolfcrypt/wc_pkcs11.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -105,7 +107,7 @@ static CK_OBJECT_CLASS secretKeyClass  = CKO_SECRET_KEY;
 #define PKCS11_RV(op, rv)       pkcs11_rv(op, rv)
 /* Enable logging of PKCS#11 calls and value. */
 #define PKCS11_VAL(op, val)     pkcs11_val(op, val)
-/* Enable logging of PKCS#11 tmaplate. */
+/* Enable logging of PKCS#11 template. */
 #define PKCS11_DUMP_TEMPLATE(name, templ, cnt)  \
     pkcs11_dump_template(name, templ, cnt)
 
@@ -398,7 +400,7 @@ static void pkcs11_val(const char* op, CK_ULONG val)
 #define PKCS11_RV(op, ev)
 /* Disable logging of PKCS#11 calls and value. */
 #define PKCS11_VAL(op, val)
-/* Disable logging of PKCS#11 tmaplate. */
+/* Disable logging of PKCS#11 template. */
 #define PKCS11_DUMP_TEMPLATE(name, templ, cnt)
 #endif
 
@@ -416,7 +418,10 @@ static void pkcs11_val(const char* op, CK_ULONG val)
 int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 {
     int                  ret = 0;
+    CK_RV                rv;
+#ifndef HAVE_PKCS11_STATIC
     void*                func;
+#endif
     CK_C_INITIALIZE_ARGS args;
 
     if (dev == NULL || library == NULL)
@@ -424,6 +429,7 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 
     if (ret == 0) {
         dev->heap = heap;
+#ifndef HAVE_PKCS11_STATIC
         dev->dlHandle = dlopen(library, RTLD_NOW | RTLD_LOCAL);
         if (dev->dlHandle == NULL) {
             WOLFSSL_MSG(dlerror());
@@ -440,8 +446,11 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
         }
     }
     if (ret == 0) {
-        ret = ((CK_C_GetFunctionList)func)(&dev->func);
-        if (ret != CKR_OK) {
+        rv = ((CK_C_GetFunctionList)func)(&dev->func);
+#else
+        rv = C_GetFunctionList(&dev->func);
+#endif
+        if (rv != CKR_OK) {
             PKCS11_RV("CK_C_GetFunctionList", ret);
             ret = WC_HW_E;
         }
@@ -450,8 +459,8 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
     if (ret == 0) {
         XMEMSET(&args, 0x00, sizeof(args));
         args.flags = CKF_OS_LOCKING_OK;
-        ret = dev->func->C_Initialize(&args);
-        if (ret != CKR_OK) {
+        rv = dev->func->C_Initialize(&args);
+        if (rv != CKR_OK) {
             PKCS11_RV("C_Initialize", ret);
             ret = WC_INIT_E;
         }
@@ -470,13 +479,19 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
  */
 void wc_Pkcs11_Finalize(Pkcs11Dev* dev)
 {
-    if (dev != NULL && dev->dlHandle != NULL) {
+    if (dev != NULL
+#ifndef HAVE_PKCS11_STATIC
+        && dev->dlHandle != NULL
+#endif
+        ) {
         if (dev->func != NULL) {
             dev->func->C_Finalize(NULL);
             dev->func = NULL;
         }
+#ifndef HAVE_PKCS11_STATIC
         dlclose(dev->dlHandle);
         dev->dlHandle = NULL;
+#endif
     }
 }
 

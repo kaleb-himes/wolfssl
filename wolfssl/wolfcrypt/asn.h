@@ -47,7 +47,7 @@ that can be serialized and deserialized in a cross-platform way.
 
 /* fips declare of RsaPrivateKeyDecode @wc_fips */
 #if defined(HAVE_FIPS) && !defined(NO_RSA) && \
-	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     #include <cyassl/ctaocrypt/rsa.h>
 #endif
 
@@ -160,7 +160,7 @@ enum ASNItem_DataType {
 
 /* A template entry describing an ASN.1 item. */
 typedef struct ASNItem {
-    /* Depth of ASN.1 item - how many consturcted ASN.1 items above. */
+    /* Depth of ASN.1 item - how many constructed ASN.1 items above. */
     byte depth;
     /* BER/DER tag to expect. */
     byte tag;
@@ -232,7 +232,7 @@ typedef struct ASNGetData {
         struct {
             /* Buffer to hold ASN.1 data. */
             byte*   data;
-            /* Maxumum length of buffer. */
+            /* Maximum length of buffer. */
             word32* length;
         } buffer;
         /* Refernce to ASN.1 item's data. */
@@ -366,7 +366,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
         (dataASN)->data.mp  = num;                                     \
     } while (0)
 
-/* Setup ASN data item to get a positve or negative number into an mp_int.
+/* Setup ASN data item to get a positive or negative number into an mp_int.
  *
  * @param [in] dataASN  Dynamic ASN data item.
  * @param [in] num      Multi-precision number object.
@@ -572,7 +572,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 #define GetASNItem_UnusedBits(dataASN)                                 \
     (*(dataASN.data.ref.data - 1))
 
-/* Set the data items at indeces start to end inclusive to not be encoded.
+/* Set the data items at indices start to end inclusive to not be encoded.
  *
  * @param [in] dataASN  Dynamic ASN data item.
  * @param [in] start    First item not to be encoded.
@@ -675,6 +675,10 @@ enum
     NID_sha256 = 672,
     NID_sha384 = 673,
     NID_sha512 = 674,
+    NID_sha512_224 = 1094,
+    NID_sha512_256 = 1095,
+    NID_pkcs9_unstructuredName = 49,
+    NID_pkcs9_contentType = 50, /* 1.2.840.113549.1.9.3 */
     NID_pkcs9_challengePassword = 54,
     NID_hw_name_oid = 73,
     NID_id_pkix_OCSP_basic = 74,
@@ -780,6 +784,7 @@ enum Misc_ASN {
     RSA_INTS            =   8,     /* RSA ints in private key */
     DSA_PARAM_INTS      =   3,     /* DSA paramater ints */
     RSA_PUB_INTS        =   2,     /* RSA ints in public key */
+    DSA_PUB_INTS        =   4,     /* DSA ints in public key */
     DSA_INTS            =   5,     /* DSA ints in private key */
     MIN_DATE_SIZE       =  12,
     MAX_DATE_SIZE       =  32,
@@ -800,6 +805,7 @@ enum Misc_ASN {
     MAX_SIG_SZ          = 256,
     MAX_ALGO_SZ         =  20,
     MAX_SHORT_SZ        =   6,     /* asn int + byte len + 4 byte length */
+    MAX_LENGTH_SZ       =   4,     /* Max length size for DER encoding */
     MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */
     MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */
     MAX_OCTET_STR_SZ    =   5,     /* enum(set | con) + length(4) */
@@ -810,9 +816,12 @@ enum Misc_ASN {
     MAX_ENCODED_DIG_SZ  =  64 + MAX_ENCODED_DIG_ASN_SZ, /* asn header + sha512 */
     MAX_RSA_INT_SZ      = 517,     /* RSA raw sz 4096 for bits + tag + len(4) */
     MAX_DSA_INT_SZ      = 389,     /* DSA raw sz 3072 for bits + tag + len(4) */
-    MAX_NTRU_KEY_SZ     = 610,     /* NTRU 112 bit public key */
-    MAX_NTRU_ENC_SZ     = 628,     /* NTRU 112 bit DER public encoding */
-    MAX_LENGTH_SZ       =   4,     /* Max length size for DER encoding */
+    MAX_DSA_PUBKEY_SZ   = (DSA_PUB_INTS * MAX_DSA_INT_SZ) + (2 * MAX_SEQ_SZ) +
+                          2 + MAX_LENGTH_SZ, /* Maximum size of a DSA public
+                                      key taken from wc_SetDsaPublicKey. */
+    MAX_DSA_PRIVKEY_SZ  = (DSA_INTS * MAX_DSA_INT_SZ) + MAX_SEQ_SZ +
+                          MAX_VERSION_SZ, /* Maximum size of a DSA Private
+                                      key taken from DsaKeyIntsToDer. */
     MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
     MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
     MAX_SN_SZ           =  35,     /* Max encoded serial number (INT) length */
@@ -855,8 +864,7 @@ enum Misc_ASN {
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
-    MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
-                                   /* use bigger NTRU size */
+    MAX_PUBLIC_KEY_SZ   = MAX_DSA_PUBKEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
 #else
@@ -923,6 +931,8 @@ enum Hash_Sum  {
     SHA256h   = 414,
     SHA384h   = 415,
     SHA512h   = 416,
+    SHA512_224h = 418,
+    SHA512_256h = 419,
     SHA3_224h = 420,
     SHA3_256h = 421,
     SHA3_384h = 422,
@@ -960,10 +970,11 @@ enum Block_Sum {
 enum Key_Sum {
     DSAk     = 515,
     RSAk     = 645,
-    NTRUk    = 274,
     ECDSAk   = 518,
-    ED25519k = 256,
-    ED448k   = 257,
+    ED25519k = 256, /* 1.3.101.112 */
+    X25519k  = 254, /* 1.3.101.110 */
+    ED448k   = 257, /* 1.3.101.113 */
+    X448k    = 255, /* 1.3.101.111 */
     DHk      = 647, /* dhKeyAgreement OID: 1.2.840.113549.1.3.1 */
 };
 
@@ -1031,8 +1042,11 @@ enum Extensions_Sum {
     ISSUE_ALT_NAMES_OID       = 132, /* 2.5.29.18 */
     TLS_FEATURE_OID           = 92,  /* 1.3.6.1.5.5.7.1.24 */
     NETSCAPE_CT_OID           = 753, /* 2.16.840.1.113730.1.1 */
-    OCSP_NOCHECK_OID          = 121  /* 1.3.6.1.5.5.7.48.1.5
+    OCSP_NOCHECK_OID          = 121, /* 1.3.6.1.5.5.7.48.1.5
                                          id-pkix-ocsp-nocheck */
+
+    AKEY_PACKAGE_OID          = 1048 /* 2.16.840.1.101.2.1.2.78.5
+                                        RFC 5958  - Asymmetric Key Packages */
 };
 
 enum CertificatePolicy_Sum {
@@ -1083,6 +1097,8 @@ enum KeyIdType {
 
 #ifdef WOLFSSL_CERT_REQ
 enum CsrAttrType {
+    UNSTRUCTURED_NAME_OID = 654,
+    PKCS9_CONTENT_TYPE_OID = 655,
     CHALLENGE_PASSWORD_OID = 659,
     SERIAL_NUMBER_OID = 94,
     EXTENSION_REQUEST_OID = 666,
@@ -1463,7 +1479,9 @@ struct DecodedCert {
 
 #ifdef WOLFSSL_CERT_REQ
     /* CSR attributes */
-    char*   cPwd; /* challengePassword */
+    char*   contentType; /* Content Type */
+    int     contentTypeLen;
+    char*   cPwd; /* Challenge Password */
     int     cPwdLen;
     char*   sNum; /* Serial Number */
     int     sNumLen;
@@ -1644,6 +1662,7 @@ WOLFSSL_ASN_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
                                 word32* derSz);
 
 WOLFSSL_ASN_API void FreeAltNames(DNS_entry*, void*);
+WOLFSSL_ASN_API DNS_entry* AltNameNew(void*);
 #ifndef IGNORE_NAME_CONSTRAINTS
     WOLFSSL_ASN_API void FreeNameSubtrees(Base_entry*, void*);
 #endif /* IGNORE_NAME_CONSTRAINTS */
@@ -1864,7 +1883,6 @@ enum cert_enums {
     EMAIL_JOINT_LEN =  9,
     PILOT_JOINT_LEN =  10,
     RSA_KEY         = 10,
-    NTRU_KEY        = 11,
     ECC_KEY         = 12,
     ED25519_KEY     = 13,
     ED448_KEY       = 14,
@@ -1886,7 +1904,7 @@ enum Ocsp_Response_Status {
     OCSP_INTERNAL_ERROR    = 2, /* Internal error in issuer */
     OCSP_TRY_LATER         = 3, /* Try again later */
     OCSP_SIG_REQUIRED      = 5, /* Must sign the request (4 is skipped) */
-    OCSP_UNAUTHROIZED      = 6  /* Request unauthorized */
+    OCSP_UNAUTHORIZED      = 6  /* Request unauthorized */
 };
 
 
@@ -1929,7 +1947,8 @@ struct CertStatus {
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
     WOLFSSL_ASN1_TIME thisDateParsed;
     WOLFSSL_ASN1_TIME nextDateParsed;
     byte* thisDateAsn;

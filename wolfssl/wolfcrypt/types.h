@@ -96,11 +96,13 @@ decouple library dependencies with standard string, memory and so on.
     #endif
 
     #ifndef HAVE_ANONYMOUS_INLINE_AGGREGATES
-        /* if __STDC__, pivot on the version, otherwise guess it's allowed,
-         * subject to override.
+        /* if a version is available, pivot on the version, otherwise guess it's
+         * allowed, subject to override.
          */
         #if !defined(__STDC__) \
-            || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201101L))
+            || (!defined(__STDC_VERSION__) && !defined(__cplusplus)) \
+            || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201101L)) \
+            || (defined(__cplusplus) && (__cplusplus >= 201103L))
             #define HAVE_ANONYMOUS_INLINE_AGGREGATES 1
         #else
             #define HAVE_ANONYMOUS_INLINE_AGGREGATES 0
@@ -317,6 +319,24 @@ decouple library dependencies with standard string, memory and so on.
         #undef  FALL_THROUGH
         #define FALL_THROUGH
     #endif
+
+    #ifndef WARN_UNUSED_RESULT
+        #if defined(WOLFSSL_LINUXKM) && defined(__must_check)
+            #define WARN_UNUSED_RESULT __must_check
+        #elif defined(__GNUC__) && (__GNUC__ >= 4)
+            #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+        #else
+            #define WARN_UNUSED_RESULT
+        #endif
+    #endif /* WARN_UNUSED_RESULT */
+
+    #ifndef WC_MAYBE_UNUSED
+        #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__)
+            #define WC_MAYBE_UNUSED __attribute__((unused))
+        #else
+            #define WC_MAYBE_UNUSED
+        #endif
+    #endif /* WC_MAYBE_UNUSED */
 
     /* Micrium will use Visual Studio for compilation but not the Win32 API */
     #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
@@ -802,7 +822,6 @@ decouple library dependencies with standard string, memory and so on.
         DYNAMIC_TYPE_SEED         = 83,
         DYNAMIC_TYPE_SYMMETRIC_KEY= 84,
         DYNAMIC_TYPE_ECC_BUFFER   = 85,
-        DYNAMIC_TYPE_QSH          = 86,
         DYNAMIC_TYPE_SALT         = 87,
         DYNAMIC_TYPE_HASH_TMP     = 88,
         DYNAMIC_TYPE_BLOB         = 89,
@@ -867,8 +886,11 @@ decouple library dependencies with standard string, memory and so on.
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 19,
+        WC_HASH_TYPE_SHA512_224 = 20,
+        WC_HASH_TYPE_SHA512_256 = 21,    
         WC_HASH_TYPE_SHAKE128 = 22,
         WC_HASH_TYPE_SHAKE256 = 23,
+
         WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256
     #else
         WC_HASH_TYPE_NONE = 0,
@@ -887,9 +909,13 @@ decouple library dependencies with standard string, memory and so on.
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 15,
+        WC_HASH_TYPE_SHA512_224 = 16,
+        WC_HASH_TYPE_SHA512_256 = 17,
         WC_HASH_TYPE_SHAKE128 = 18,
         WC_HASH_TYPE_SHAKE256 = 19,
+
         WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256
+
     #endif /* HAVE_SELFTEST */
     };
 
@@ -1071,7 +1097,7 @@ decouple library dependencies with standard string, memory and so on.
 
 
     #if defined(HAVE_STACK_SIZE)
-        #define EXIT_TEST(ret) return (void*)((size_t)(ret))
+        #define EXIT_TEST(ret) return (THREAD_RETURN)((size_t)(ret))
     #else
         #define EXIT_TEST(ret) return ret
     #endif
@@ -1114,6 +1140,19 @@ decouple library dependencies with standard string, memory and so on.
         #define PRAGMA_GCC_IGNORE(str)
         #define PRAGMA_GCC_POP
     #endif
+
+    #ifdef __clang__
+        #define PRAGMA_CLANG_DIAG_PUSH _Pragma("clang diagnostic push")
+        #define PRAGMA_CLANG(str) _Pragma(str)
+        #define PRAGMA_CLANG_DIAG_POP _Pragma("clang diagnostic pop")
+    #else
+        #define PRAGMA_CLANG_DIAG_PUSH
+        #define PRAGMA_CLANG(str)
+        #define PRAGMA_CLANG_DIAG_POP
+    #endif
+
+
+
 
     #ifdef __cplusplus
         }   /* extern "C" */

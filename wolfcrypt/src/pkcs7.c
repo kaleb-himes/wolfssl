@@ -4277,6 +4277,11 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
             }
 
             if (ret == 0) {
+                if (length > (int)inSz - (int)idx)
+                    ret = BUFFER_E;
+            }
+
+            if (ret == 0) {
                 ret = wc_PKCS7_SignerInfoSetSID(pkcs7, in + idx, length);
                 idx += length;
             }
@@ -5244,6 +5249,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 if (pkiMsg != in && pkcs7->stream->length > 0) {
                     pkiMsg2Sz = pkcs7->stream->length;
                 }
+                else {
+                    /* if pkiMsg2 is pkiMsg and not using an internal stream
+                     * buffer then the size is limited by inSz */
+                    pkiMsg2Sz = inSz;
+                }
             }
 
             /* restore content */
@@ -5713,6 +5723,8 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari)
     ret = wc_ecc_init_ex(kari->senderKey, kari->heap, kari->devId);
     if (ret != 0) {
         XFREE(kari->senderKeyExport, kari->heap, DYNAMIC_TYPE_PKCS7);
+        kari->senderKeyExportSz = 0;
+        kari->senderKeyExport   = NULL;
         return ret;
     }
 
@@ -5721,6 +5733,8 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari)
     ret = wc_InitRng_ex(&rng, kari->heap, kari->devId);
     if (ret != 0) {
         XFREE(kari->senderKeyExport, kari->heap, DYNAMIC_TYPE_PKCS7);
+        kari->senderKeyExportSz = 0;
+        kari->senderKeyExport   = NULL;
         return ret;
     }
 
@@ -5728,6 +5742,8 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari)
                              kari->senderKey, kari->recipKey->dp->id);
     if (ret != 0) {
         XFREE(kari->senderKeyExport, kari->heap, DYNAMIC_TYPE_PKCS7);
+        kari->senderKeyExportSz = 0;
+        kari->senderKeyExport   = NULL;
         wc_FreeRng(&rng);
         return ret;
     }
@@ -5739,6 +5755,8 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari)
                              &kari->senderKeyExportSz);
     if (ret != 0) {
         XFREE(kari->senderKeyExport, kari->heap, DYNAMIC_TYPE_PKCS7);
+        kari->senderKeyExportSz = 0;
+        kari->senderKeyExport   = NULL;
         return ret;
     }
 
@@ -6488,10 +6506,20 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
         }
         snSz = SetSerialNumber(decoded->serial, decoded->serialSz, serial,
                                MAX_SN_SZ, MAX_SN_SZ);
-
+        if (snSz < 0) {
+            WOLFSSL_MSG("Error setting the serial number");
+            FreeDecodedCert(decoded);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return -1;
+        }
         issuerSerialSeqSz = SetSequence(issuerSeqSz + issuerSz + snSz,
                                         issuerSerialSeq);
-
     } else if (sidType == CMS_SKID) {
 
         /* version, must be 2 for SubjectKeyIdentifier */
@@ -10983,6 +11011,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
 
     /* authAttribs: add contentType attrib if needed */
     if (pkcs7->contentOID != DATA) {
+
+        XMEMSET(&contentTypeAttrib, 0, sizeof contentTypeAttrib);
 
         /* if type is not id-data, contentType attribute MUST be added */
         contentTypeAttrib.oid = contentTypeOid;

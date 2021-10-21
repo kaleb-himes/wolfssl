@@ -90,6 +90,10 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
 
+#if defined(WOLFSSL_KCAPI_RSA)
+    #include <wolfssl/wolfcrypt/port/kcapi/kcapi_rsa.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -188,6 +192,9 @@ struct RsaKey {
     byte*  mod;
     XSecure_Rsa xRsa;
 #endif
+#if defined(WOLFSSL_KCAPI_RSA)
+    struct kcapi_handle* handle;
+#endif
 #ifdef WOLF_CRYPTO_CB
     byte id[RSA_MAX_ID_LEN];
     int  idLen;
@@ -276,6 +283,10 @@ WOLFSSL_API int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen,
                                            byte* sig, word32 sigSz,
                                            enum wc_HashType hashType,
                                            int saltLen, int bits);
+WOLFSSL_API int  wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inLen,
+                                           byte* sig, word32 sigSz,
+                                           enum wc_HashType hashType,
+                                           int saltLen, int bits, void* heap);
 WOLFSSL_API int  wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                                const byte* digest, word32 digentLen,
                                enum wc_HashType hash, int mgf,
@@ -297,7 +308,8 @@ WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
-#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
+        defined(WOLFSSL_KCAPI_RSA)
     WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
 #endif
 

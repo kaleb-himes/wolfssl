@@ -91,6 +91,20 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/sniffer.h>
 #include <wolfssl/sniffer_error.h>
+
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
+#ifndef NO_DH
+    #include <wolfssl/wolfcrypt/dh.h>
+#endif
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -478,6 +492,10 @@ typedef struct KeyShareInfo {
     int         curve_id;
 } KeyShareInfo;
 
+/* maximum previous acks to capture */
+#ifndef WC_SNIFFER_HS_ACK_HIST_MAX
+#define WC_SNIFFER_HS_ACK_HIST_MAX 10
+#endif
 
 /* Sniffer Session holds info for each client/server SSL/TLS session */
 typedef struct SnifferSession {
@@ -492,6 +510,8 @@ typedef struct SnifferSession {
     word32         srvSeqStart;     /* server start sequence */
     word32         cliExpected;     /* client expected sequence (relative) */
     word32         srvExpected;     /* server expected sequence (relative) */
+    word32         cliAcks[WC_SNIFFER_HS_ACK_HIST_MAX]; /* history of acks during handshake */
+    word32         srvAcks[WC_SNIFFER_HS_ACK_HIST_MAX]; /* history of acks during handshake */
     FinCapture     finCapture;      /* retain out of order FIN s */
     Flags          flags;           /* session flags */
     time_t         lastUsed;        /* last used ticks */
@@ -2146,6 +2166,9 @@ typedef struct {
 #ifdef HAVE_ECC
     DerBuffer* ecKey;
 #endif
+#ifdef HAVE_CURVE25519
+    DerBuffer* x25519Key;
+#endif
 #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
     DerBuffer* rsaKey;
 #endif
@@ -2157,14 +2180,14 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     word32 idx = 0;
     int ret;
     DerBuffer* keyBuf;
-#ifdef HAVE_ECC
-    int useEccCurveId = ECC_CURVE_DEF;
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+    int useCurveId = 0;
 #endif
     int devId = INVALID_DEVID;
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
     if (ksInfo && ksInfo->curve_id != 0)
-        useEccCurveId = ksInfo->curve_id;
+        useCurveId = ksInfo->curve_id;
 #endif
 #ifdef WOLF_CRYPTO_CB
     devId = CryptoDeviceId;
@@ -2201,9 +2224,9 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                     keys->ecKey = session->sslServer->buffers.key; /* try ECC */
             #endif
             }
-        #ifdef HAVE_ECC
+        #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
             else {
-                useEccCurveId = -1; /* don't try loading ECC */
+                useCurveId = -1; /* don't try loading further */
             }
         #endif
         }
@@ -2365,7 +2388,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
 #ifdef HAVE_ECC
     /* Static ECC Key */
-    if (useEccCurveId >= ECC_CURVE_DEF && keys->ecKey) {
+    if (useCurveId >= 0 && keys->ecKey
+    #ifdef HAVE_CURVE25519
+        && useCurveId != ECC_X25519 
+    #endif
+    ) {
         ecc_key key;
         ecc_key pubKey;
         int length, keyInit = 0, pubKeyInit = 0;
@@ -2422,13 +2449,13 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             }
 
             /* if curve not provided in key share data, then use private key curve */
-            if (useEccCurveId == ECC_CURVE_DEF && key.dp) {
-                useEccCurveId = key.dp->id;
+            if (useCurveId == 0 && key.dp) {
+                useCurveId = key.dp->id;
             }
         }
 
         if (ret == 0) {
-            ret = wc_ecc_import_x963_ex(input, length, &pubKey, useEccCurveId);
+            ret = wc_ecc_import_x963_ex(input, length, &pubKey, useCurveId);
             if (ret != 0) {
                 SetError(ECC_PUB_DECODE_STR, error, session, FATAL_ERROR_STATE);
             }
@@ -2465,6 +2492,82 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             wc_ecc_free(&pubKey);
     }
 #endif /* HAVE_ECC */
+
+#ifdef HAVE_CURVE25519
+    /* Static Curve25519 Key */
+    if (useCurveId == ECC_X25519 && keys->x25519Key) {
+        curve25519_key key;
+        curve25519_key pubKey;
+        int length, keyInit = 0, pubKeyInit = 0;
+
+        keyBuf = keys->x25519Key;
+
+#ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
+        if (KeyCb != NULL && ksInfo) {
+            ret = KeyCb(session, ksInfo->named_group,
+                session->srvKs.key, session->srvKs.key_len,
+                session->cliKs.key, session->cliKs.key_len,
+                keyBuf, KeyCbCtx, error);
+            if (ret != 0) {
+                SetError(-1, error, session, FATAL_ERROR_STATE);
+                return ret;
+            }
+        }
+#endif
+
+        idx = 0;
+        ret = wc_curve25519_init_ex(&key, NULL, devId);
+        if (ret == 0) {
+            keyInit = 1;
+            ret = wc_curve25519_init(&pubKey);
+        }
+
+        if (ret == 0) {
+            pubKeyInit = 1;
+            ret = wc_Curve25519PrivateKeyDecode(keyBuf->buffer, &idx, &key,
+                keyBuf->length);
+            if (ret != 0) {
+                SetError(ECC_DECODE_STR, error, session, FATAL_ERROR_STATE);
+            }
+        }
+
+        if (ret == 0) {
+            length = CURVE25519_KEYSIZE;
+            if (length > *sslBytes) {
+                SetError(PARTIAL_INPUT_STR, error, session, FATAL_ERROR_STATE);
+                ret = -1;
+            }
+        }
+
+        if (ret == 0) {
+            ret = wc_curve25519_import_public_ex(input, length, &pubKey,
+                EC25519_LITTLE_ENDIAN);
+            if (ret != 0) {
+                SetError(ECC_PUB_DECODE_STR, error, session, FATAL_ERROR_STATE);
+            }
+        }
+
+        if (ret == 0) {
+            /* For Curve25519 length is always 32 */
+            session->keySz = CURVE25519_KEYSIZE;
+            session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
+
+            ret = wc_curve25519_shared_secret_ex(&key, &pubKey,
+                session->sslServer->arrays->preMasterSecret,
+                &session->sslServer->arrays->preMasterSz, EC25519_LITTLE_ENDIAN);
+        }
+
+#ifdef WOLFSSL_SNIFFER_STATS
+        if (ret != 0)
+            INC_STAT(SnifferStats.sslKeyFails);
+#endif
+
+        if (keyInit)
+            wc_curve25519_free(&key);
+        if (pubKeyInit)
+            wc_curve25519_free(&pubKey);
+    }
+#endif /* HAVE_CURVE25519 */
 
     /* store for client side as well */
     XMEMCPY(session->sslClient->arrays->preMasterSecret,
@@ -2553,6 +2656,9 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
     #ifdef HAVE_ECC
     keys.ecKey = session->sslServer->staticKE.ecKey;
     #endif
+    #ifdef HAVE_CURVE25519
+    keys.x25519Key = session->sslServer->staticKE.x25519Key;
+    #endif
 #endif
     keys.rsaKey = session->sslServer->buffers.key;
     return SetupKeys(input, sslBytes, session, error, NULL, &keys);
@@ -2612,7 +2718,7 @@ static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
         #endif
     #endif /* !NO_DH */
     #ifdef HAVE_ECC
-        #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+        #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
             #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP256R1:
                 info->curve_id = ECC_SECP256R1;
@@ -2755,19 +2861,21 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
 #ifdef WOLFSSL_TLS13
     /* TLS v1.3 has hint age and nonce */
     if (IsAtLeastTLSv1_3(ssl->version)) {
+        /* Note: Must use server session for sessions */
     #ifdef HAVE_SESSION_TICKET
-        if (SetTicket(ssl, input, len) != 0) {
+        if (SetTicket(session->sslServer, input, len) != 0) {
             SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
+
         /* set haveSessionId to use the wolfSession cache */
-        ssl->options.haveSessionId = 1;
+        session->sslServer->options.haveSessionId = 1;
 
         /* Use the wolf Session cache to retain resumption secret */
         if (session->flags.cached == 0) {
-            WOLFSSL_SESSION* sess = GetSession(ssl, NULL, 0);
+            WOLFSSL_SESSION* sess = GetSession(session->sslServer, NULL, 0);
             if (sess == NULL) {
-                AddSession(ssl); /* don't re add */
+                AddSession(session->sslServer); /* don't re add */
             #ifdef WOLFSSL_SNIFFER_STATS
                 INC_STAT(SnifferStats.sslResumptionInserts);
             #endif
@@ -2858,8 +2966,10 @@ static int DoResume(SnifferSession* session, char* error)
         /* Resumption PSK is resumption master secret. */
         session->sslServer->arrays->psk_keySz = session->sslServer->specs.hash_size;
         session->sslClient->arrays->psk_keySz = session->sslClient->specs.hash_size;
-        ret  = DeriveResumptionPSK(session->sslServer, session->sslServer->session.ticketNonce.data, 
-            session->sslServer->session.ticketNonce.len, session->sslServer->arrays->psk_key);
+        ret  = DeriveResumptionPSK(session->sslServer,
+            session->sslServer->session.ticketNonce.data, 
+            session->sslServer->session.ticketNonce.len,
+            session->sslServer->arrays->psk_key);
         /* Copy resumption PSK to client */
         XMEMCPY(session->sslClient->arrays->psk_key, 
             session->sslServer->arrays->psk_key,
@@ -3180,6 +3290,9 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         #endif
         #ifdef HAVE_ECC
         keys.ecKey = session->sslServer->staticKE.ecKey;
+        #endif
+        #ifdef HAVE_CURVE25519
+        keys.x25519Key = session->sslServer->staticKE.x25519Key;
         #endif
     #endif
 
@@ -3505,6 +3618,9 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                         return -1;
                     }
                 }
+            #ifdef HAVE_SESSION_TICKET
+                ssl->options.useTicket = 1;
+            #endif
                 XMEMCPY(session->ticketID, input + extLen - ID_LEN, ID_LEN);
             }
             break;
@@ -3654,14 +3770,16 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
 
     if (ret == 0 && session->flags.cached == 0) {
         if (session->sslServer->options.haveSessionId) {
+        #ifndef NO_SESSION_CACHE
             WOLFSSL_SESSION* sess = GetSession(session->sslServer, NULL, 0);
             if (sess == NULL) {
-                AddSession(session->sslServer);  /* don't re add */
+                AddSession(session->sslServer); /* don't re add */
             #ifdef WOLFSSL_SNIFFER_STATS
                 INC_STAT(SnifferStats.sslResumptionInserts);
             #endif
             }
             session->flags.cached = 1;
+        #endif
          }
     }
 
@@ -3698,13 +3816,15 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
 
         #ifdef HAVE_SESSION_TICKET
             /* derive resumption secret for next session - on finished (from client) */
-            ret += DeriveResumptionSecret(session->sslClient, session->sslClient->session.masterSecret);
+            ret += DeriveResumptionSecret(session->sslClient,
+                session->sslClient->session.masterSecret);
 
             /* copy resumption secret to server */
             XMEMCPY(session->sslServer->session.masterSecret,
-                session->sslClient->session.masterSecret, SECRET_LEN);
+                    session->sslClient->session.masterSecret, SECRET_LEN);
             #ifdef SHOW_SECRETS
-            PrintSecret("resumption secret", session->sslClient->session.masterSecret, SECRET_LEN);
+            PrintSecret("resumption secret",
+                session->sslClient->session.masterSecret, SECRET_LEN);
             #endif
         #endif
         }
@@ -4626,12 +4746,53 @@ static int AddFinCapture(SnifferSession* session, word32 sequence)
     return 1;
 }
 
+static int FindPrevAck(SnifferSession* session, word32 realAck)
+{
+    int i;
+    word32* acks = (session->flags.side == WOLFSSL_SERVER_END) ?
+        session->cliAcks : session->srvAcks;
+    /* if previous ack found return 1, otherwise 0 */
+    for (i=0; i<WC_SNIFFER_HS_ACK_HIST_MAX; i++) {
+        if (acks[i] == realAck) {
+            return 1;
+        }
+
+    }
+    return 0;
+}
+static void AddAck(SnifferSession* session, word32 realAck)
+{
+    int i;
+    word32* acks = (session->flags.side == WOLFSSL_SERVER_END) ?
+        session->cliAcks : session->srvAcks;
+    /* find first empty ack slot */
+    for (i=0; i<WC_SNIFFER_HS_ACK_HIST_MAX; i++) {
+        if (acks[i] == 0) {
+            break;
+        }
+    }
+    /* if out of slots, find oldest */
+    if (i == WC_SNIFFER_HS_ACK_HIST_MAX) {
+        int idx = 0;
+        word32 lastAck = realAck;
+        for (i=0; i<WC_SNIFFER_HS_ACK_HIST_MAX; i++) {
+            if (acks[i] < lastAck) {
+                idx = i;
+                lastAck = acks[i];
+            }
+        }
+        i  = idx;
+    }
+
+    acks[i] = realAck;
+}
 
 /* Adjust incoming sequence based on side */
 /* returns 0 on success (continue), -1 on error, 1 on success (end) */
 static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                           int* sslBytes, const byte** sslFrame, char* error)
 {
+    int ret = 0;
     word32  seqStart = (session->flags.side == WOLFSSL_SERVER_END) ?
                                      session->cliSeqStart :session->srvSeqStart;
     word32  real     = tcpInfo->sequence - seqStart;
@@ -4645,26 +4806,27 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
 
     /* handle rollover of sequence */
     if (tcpInfo->sequence < seqStart)
-        real = 0xffffffffU - seqStart + tcpInfo->sequence;
+        real = 0xffffffffU - seqStart + tcpInfo->sequence + 1;
 
     TraceRelativeSequence(*expected, real);
 
     if (real < *expected) {
-        Trace(DUPLICATE_STR);
-        if (real + *sslBytes > *expected) {
-            int overlap = *expected - real;
-            Trace(OVERLAP_DUPLICATE_STR);
 
-            /* adjust to expected, remove duplicate */
-            *sslFrame += overlap;
-            *sslBytes -= overlap;
+        if (real + *sslBytes > *expected) {
+            Trace(OVERLAP_DUPLICATE_STR);
 
             /* The following conditional block is duplicated below. It is the
              * same action but for a different setup case. If changing this
              * block be sure to also update the block below. */
             if (reassemblyList) {
-                word32 newEnd = *expected + *sslBytes;
+                int overlap = *expected - real;
+                word32 newEnd;
 
+                /* adjust to expected, remove duplicate */
+                *sslFrame += overlap;
+                *sslBytes -= overlap;
+                
+                newEnd = *expected + *sslBytes;
                 if (newEnd > reassemblyList->begin) {
                     Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
 
@@ -4681,34 +4843,52 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                                  newEnd - reassemblyList->end, session, error);
                 }
             }
+            else {
+                /* DUP overlap, allow */
+                if (*sslBytes > 0) {
+                    skipPartial = 0; /* do not reset sslBytes */
+                }
+            }
+            ret = 0;
         }
-        else
-            return 1;
+        else {
+            /* This can happen with unseen acks, out of order packets, or
+             * possible spurious retransmission. */
+            if (*sslBytes > 0) {
+                /* If packet has data attempt to process packet, if hasn't 
+                 * already been ack'd during handshake */
+                if (FindPrevAck(session, real)) {
+                    Trace(DUPLICATE_STR);
+                    ret = 1;
+                }
+                else {
+                    /* DUP: allow */
+                    skipPartial = 0; /* do not reset sslBytes */
+                    ret = 0;
+                }
+            }
+            else {
+                /* DUP empty, ignore */
+                ret = 1;
+            }
+        }
     }
     else if (real > *expected) {
         Trace(OUT_OF_ORDER_STR);
         if (*sslBytes > 0) {
             int addResult = AddToReassembly(session->flags.side, real,
                                           *sslFrame, *sslBytes, session, error);
-            if (skipPartial) {
-                *sslBytes = 0;
-                return 0;
-            }
-            else
-                return addResult;
+            ret = (skipPartial) ? 0 : addResult;
         }
-        else if (tcpInfo->fin)
-            return AddFinCapture(session, real);
+        else if (tcpInfo->fin) {
+            ret = AddFinCapture(session, real);
+        }
     }
     else if (*sslBytes > 0) {
         if (skipPartial) {
             AddToReassembly(session->flags.side, real,
                                           *sslFrame, *sslBytes, session, error);
-            *expected += *sslBytes;
-            *sslBytes = 0;
-            if (tcpInfo->fin)
-                *expected += 1;
-            return 0;
+            ret = 0;
         }
         /* The following conditional block is duplicated above. It is the
          * same action but for a different setup case. If changing this
@@ -4733,12 +4913,24 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
             }
         }
     }
-    /* got expected sequence */
-    *expected += *sslBytes;
-    if (tcpInfo->fin)
-        *expected += 1;
+    else {
+        /* no data present */
+    }
 
-    return 0;
+    if (ret == 0) {
+        /* got expected sequence */
+        *expected += *sslBytes;
+        if (tcpInfo->fin)
+            *expected += 1;
+    }
+    if (*sslBytes > 0) {
+        AddAck(session, real);
+    }
+    if (*sslBytes > 0 && skipPartial) {
+        *sslBytes = 0;
+    }
+
+    return ret;
 }
 
 
@@ -4842,16 +5034,12 @@ static int FixSequence(TcpInfo* tcpInfo, SnifferSession* session)
                                 &session->flags.srvSkipPartial :
                                 &session->flags.cliSkipPartial;
 
-    if (tcpInfo->ackNumber < seqStart) {
-        return -1; /* do not fix sequence - could be ack on unseen seq */
-    }
     *skipPartial = 1;
     
     if (list != NULL)
         *expected = list->begin;
     else
         *expected = tcpInfo->ackNumber - seqStart;
-
 
     return 1;
 }
@@ -4870,7 +5058,7 @@ static int CheckAck(TcpInfo* tcpInfo, SnifferSession* session)
 
         /* handle rollover of sequence */
         if (tcpInfo->ackNumber < seqStart)
-            real = 0xffffffffU - seqStart + tcpInfo->ackNumber;
+            real = 0xffffffffU - seqStart + tcpInfo->ackNumber + 1;
 
         TraceAck(real, expected);
 
@@ -4972,7 +5160,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         }
     }
 
-    if (*sslBytes == 0) {
+    if (*sslBytes <= 0) {
         Trace(NO_DATA_STR);
         return 1;
     }
@@ -5161,8 +5349,9 @@ doMessage:
     }
     if (sslBytes >= RECORD_HEADER_SZ) {
         if (GetRecordHeader(sslFrame, &rh, &rhSize) != 0) {
-            SetError(BAD_RECORD_HDR_STR, error, session, FATAL_ERROR_STATE);
-            return -1;
+            /* ignore packet if record header errors */
+            SetError(BAD_RECORD_HDR_STR, error, session, 0);
+            return 0;
         }
     }
     else
@@ -5191,6 +5380,16 @@ doMessage:
     sslBytes -= RECORD_HEADER_SZ;
     recordEnd = sslFrame + rhSize;   /* may have more than one record */
     inRecordEnd = recordEnd;
+
+    /* Make sure cipher is on for client, if we get an application data packet 
+     * and handhsake is done for server. This workaround is required if client
+     * handshake packets were missed, retransmitted or sent out of order. */
+    if ((enum ContentType)rh.type == application_data &&
+                  ssl->options.handShakeDone && session->flags.serverCipherOn) {
+        session->flags.clientCipherOn = 1;
+        session->sslClient->options.handShakeState = HANDSHAKE_DONE;
+        session->sslClient->options.handShakeDone  = 1;
+    }
 
     /* decrypt if needed */
     if ((session->flags.side == WOLFSSL_SERVER_END &&
@@ -5231,8 +5430,12 @@ doMessage:
         }
 #endif
         if (errCode != 0) {
-            SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
-            return -1;
+            if ((enum ContentType)rh.type == application_data) {
+                SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
+                return -1;
+            }
+            /* do not end session for failures on handshake packets */
+            return 0;
         }
     }
 
@@ -5287,7 +5490,7 @@ doPart:
             {
                 word32 inOutIdx = 0;
 
-                ret = DoApplicationData(ssl, (byte*)sslFrame, &inOutIdx);
+                ret = DoApplicationData(ssl, (byte*)sslFrame, &inOutIdx, SNIFF);
                 if (ret == 0) {
                     ret = ssl->buffers.clearOutputBuffer.length;
                     TraceGotData(ret);
@@ -5682,7 +5885,7 @@ int ssl_EnableRecovery(int onOff, int maxMemory, char* error)
 
 
 
-#ifdef WOLFSSL_SESSION_STATS
+#if defined(WOLFSSL_SESSION_STATS) && !defined(NO_SESSION_CACHE)
 
 int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
                         unsigned int* peak,       unsigned int* maxSessions,

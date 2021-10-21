@@ -103,7 +103,6 @@ enum {
     ASN_SIG_HASH_E     = -156,  /* ASN sig error, unsupported hash type */
     ASN_SIG_KEY_E      = -157,  /* ASN sig error, unsupported key type */
     ASN_DH_KEY_E       = -158,  /* ASN key init error, invalid input */
-    ASN_NTRU_KEY_E     = -159,  /* ASN ntru key decode error, invalid input */
     ASN_CRIT_EXT_E     = -160,  /* ASN unsupported critical extension */
     ASN_ALT_NAME_E     = -161,  /* ASN alternate name error */
     ASN_NO_PEM_HEADER  = -162,  /* ASN no PEM header found */
@@ -117,6 +116,7 @@ enum {
     NO_PASSWORD        = -176,  /* no password provided by user */
     ALT_NAME_E         = -177,  /* alt name size problem, too big */
     BAD_OCSP_RESPONDER = -178,  /* missing key usage extensions */
+    CRL_CERT_DATE_ERR  = -179,   /* CRL date error */
 
     AES_GCM_AUTH_E     = -180,  /* AES-GCM Authentication check failure */
     AES_CCM_AUTH_E     = -181,  /* AES-CCM Authentication check failure */
