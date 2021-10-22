@@ -79,7 +79,7 @@ int my_rng_generate_seed(unsigned char* output, int sz)
     return 0;
 }
 
-void appFipsCb(int ok, int err, const char* hash)
+static void appFipsCb(int ok, int err, const char* hash)
 {
     dc_log_printf("in appFipsCb Fips callback, ok = %d, err = %d\n", ok, err);
     dc_log_printf("message = %s\n", wc_GetErrorString(err));
