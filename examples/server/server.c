@@ -2282,7 +2282,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #if !defined(NO_CERTS)
     if ((!usePsk || usePskPlus) && !useAnon && !(loadCertKeyIntoSSLObj == 1)) {
-    #ifdef NO_FILESYSTEM
+    #if defined(NO_FILESYSTEM) && defined(USE_CERT_BUFFERS_2048)
         if (wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,
                 server_cert_der_2048, sizeof_server_cert_der_2048,
                 WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
@@ -2576,7 +2576,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* Support for loading private key and cert using WOLFSSL object */
 #if !defined(NO_CERTS)
     if ((!usePsk || usePskPlus) && !useAnon && loadCertKeyIntoSSLObj) {
-    #ifdef NO_FILESYSTEM
+    #if defined(NO_FILESYSTEM) && defined(USE_CERT_BUFFERS_2048)
         if (wolfSSL_use_certificate_chain_buffer_format(ssl,
                 server_cert_der_2048, sizeof_server_cert_der_2048,
                 WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)

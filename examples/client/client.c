@@ -2939,7 +2939,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef NO_CERTS
     if (useClientCert && !loadCertKeyIntoSSLObj){
-    #ifdef NO_FILESYSTEM
+    #if defined(NO_FILESYSTEM) && defined(USE_CERT_BUFFERS_2048)
         if (wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,
                 client_cert_der_2048, sizeof_client_cert_der_2048,
                 WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
