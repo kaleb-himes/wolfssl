@@ -23,7 +23,7 @@
 #include <stdarg.h>
 #include <tx_api.h>
 #include <entropy.h>
-#include <wolfssl/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/fips_test.h>
 
