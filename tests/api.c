@@ -54778,6 +54778,8 @@ static int test_wolfSSL_DH_dup(void)
 #endif
 
     wolfSSL_DH_free(dh);
+    wolfSSL_BN_free(p);
+    wolfSSL_BN_free(g);
 
     res = TEST_RES_CHECK(1);
 #endif
