@@ -54,9 +54,12 @@
 
 /* Size of the BRBG seed */
 #ifndef DRBG_SEED_LEN
-    #define DRBG_SEED_LEN (440/8)
+    #ifdef USE_SHA512_HASHDRBG
+        #define DRBG_SEED_LEN (888/8)
+    #else
+        #define DRBG_SEED_LEN (440/8)
+    #endif
 #endif
-
 
 #if !defined(CUSTOM_RAND_TYPE)
     /* To maintain compatibility the default is byte */
@@ -104,9 +107,17 @@
     #endif
 #elif defined(HAVE_HASHDRBG)
     #ifdef NO_SHA256
-        #error "Hash DRBG requires SHA-256."
+        #if defined(WOLFSSL_SHA512) && !defined(USE_SHA512_HASHDRBG)
+            #error "Hash DRBG requires either SHA-256 or SHA-512"
+        #else
+            #error "Hash DRBG requires SHA-256."
+        #endif
     #endif /* NO_SHA256 */
-    #include <wolfssl/wolfcrypt/sha256.h>
+    #ifdef USE_SHA512_HASHDRBG
+        #include <wolfssl/wolfcrypt/sha512.h>
+    #else
+        #include <wolfssl/wolfcrypt/sha256.h>
+    #endif
 #elif defined(HAVE_WNR)
      /* allow whitewood as direct RNG source using wc_GenerateSeed directly */
 #elif defined(HAVE_INTEL_RDRAND)
@@ -172,7 +183,11 @@ struct DRBG_internal {
     int devId;
 #endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
+  #ifdef USE_SHA512_HASHDRBG
+    wc_Sha512 sha512;
+  #else
     wc_Sha256 sha256;
+  #endif
 #endif
 };
 #endif

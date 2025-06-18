@@ -4313,7 +4313,11 @@ void bench_rng(void)
 #endif
            );
 exit_rng:
-    bench_stats_sym_finish("RNG", 0, count, bench_size, start, ret);
+#ifdef USE_SHA512_HASHDRBG
+    bench_stats_sym_finish("RNG (sha512)", 0, count, bench_size, start, ret);
+#else
+    bench_stats_sym_finish("RNG (sha256)", 0, count, bench_size, start, ret);
+#endif
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
