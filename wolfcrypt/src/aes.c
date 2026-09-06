@@ -18971,6 +18971,8 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, const byte* i, word32 iSz,
         else
 #endif /* WOLFSSL_AESNI */
         {
+            /* No aarch64 lane: wc_AesEncryptDirect() dispatches to the
+             * hardware itself. */
             ret = AesXtsInitTweak_sw(xaes, stream->tweak_block);
         }
     }
@@ -19001,6 +19003,11 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
 
 #if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
     Aes *aes;
+#endif
+#ifdef WC_AES_XTS_STREAM_AARCH64
+    /* One keyed XtsAes can drive several streams at once, so the stealing
+     * scratch stays on the stack rather than in the shared aes->tmp. */
+    ALIGN16 byte xts_tmp[WC_AES_BLOCK_SIZE];
 #endif
 
     if (xaes == NULL || out == NULL || in == NULL) {
@@ -19089,10 +19096,10 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         else
 #endif /* WOLFSSL_AESNI */
 #ifdef WC_AES_XTS_STREAM_AARCH64
-        /* Same lane the one-shot wc_AesXtsEncrypt() takes. */
         if (aes->use_aes_hw_crypto) {
             AES_XTS_encrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
-                stream->tweak_block, (byte*)aes->tmp, aes->rounds);
+                stream->tweak_block, xts_tmp, (int)aes->rounds);
+            ForceZero(xts_tmp, sizeof(xts_tmp));
             ret = 0;
         }
         else
@@ -19552,6 +19559,8 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, const byte* i, word32 iSz,
         else
 #endif /* WOLFSSL_AESNI */
         {
+            /* No aarch64 lane: wc_AesEncryptDirect() dispatches to the
+             * hardware itself. */
             ret = AesXtsInitTweak_sw(xaes, stream->tweak_block);
         }
 
@@ -19580,6 +19589,11 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
     int ret;
 #if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
     Aes *aes;
+#endif
+#ifdef WC_AES_XTS_STREAM_AARCH64
+    /* One keyed XtsAes can drive several streams at once, so the stealing
+     * scratch stays on the stack rather than in the shared aes->tmp. */
+    ALIGN16 byte xts_tmp[WC_AES_BLOCK_SIZE];
 #endif
 
     if (xaes == NULL || out == NULL || in == NULL) {
@@ -19661,11 +19675,12 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         else
 #endif /* WOLFSSL_AESNI */
 #ifdef WC_AES_XTS_STREAM_AARCH64
-        /* Same lane the one-shot wc_AesXtsDecrypt() takes.  aes is the
-         * decrypt context resolved above, never xaes->aes. */
+        /* Use the resolved decrypt schedule: xaes->aes_decrypt under
+         * simultaneous keys, otherwise xaes->aes holds the decrypt schedule. */
         if (aes->use_aes_hw_crypto) {
             AES_XTS_decrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
-                stream->tweak_block, (byte*)aes->tmp, aes->rounds);
+                stream->tweak_block, xts_tmp, (int)aes->rounds);
+            ForceZero(xts_tmp, sizeof(xts_tmp));
             ret = 0;
         }
         else

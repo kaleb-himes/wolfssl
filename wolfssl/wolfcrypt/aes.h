@@ -1223,7 +1223,9 @@ WOLFSSL_LOCAL void AES_XTS_decrypt_AARCH64(const byte* in, byte* out,
     word32 sz, const byte* i, byte* key, byte* key2, byte* tmp, int nr);
 #ifdef WOLFSSL_AESXTS_STREAM
 /* Streaming twins of the pair above: the tweak is read and written back
- * through "tweak" instead of derived from an IV.  sz is whole blocks. */
+ * through "tweak", and "tmp" is one block of caller scratch.  sz must be at
+ * least one block: the callers reject anything shorter, and a shorter sz
+ * would read and write outside the caller's buffers. */
 WOLFSSL_LOCAL void AES_XTS_encrypt_update_AARCH64(const byte* in, byte* out,
     word32 sz, byte* key, byte* tweak, byte* tmp, int nr);
 WOLFSSL_LOCAL void AES_XTS_decrypt_update_AARCH64(const byte* in, byte* out,
