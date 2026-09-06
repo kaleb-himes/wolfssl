@@ -127,8 +127,8 @@ esac
 # Read the HMAC key (coreKey) as ASCII hex straight out of the binary.
 keyoff=$(vaddr_to_off "$keyaddr") || die "cannot map coreKey address to file offset"
 KEYHEX=$(extract "$keyoff" $((KEYSZ - 1)))
-# Take the key length from the coreKey[] symbol, not from the digest size: they
-# coincided through SHA-256 but v7's SHA-512 uses a 128-byte key, not 64.
+# coreKey is sized independently of the digest: v7 pairs a 128-byte key with a
+# 64-byte SHA-512 digest.
 [ "${#KEYHEX}" -eq $((KEYSZ - 1)) ] || die "coreKey length mismatch in binary"
 case "$KEYHEX" in *[!0-9A-Fa-f]*) die "coreKey is not ASCII hex" ;; esac
 
