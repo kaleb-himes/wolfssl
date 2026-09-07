@@ -23,47 +23,43 @@ then
 fi
 
 # testwolfcrypt is a libtool wrapper script. With .libs/testwolfcrypt missing it
-# still runs, printing its own error to stderr, so capture both streams.
-TESTOUT=$(./wolfcrypt/test/testwolfcrypt 2>&1)
+# prints its own error to stderr and exits 1, so stdout alone says whether the
+# test really ran. Leave stderr on the terminal where the build log gets it.
+TESTOUT=$(./wolfcrypt/test/testwolfcrypt)
 TESTRC=$?
 
-# A run that reached main() prints the banner (hash already matched) or a hash
-# line (hash needs replacing). Neither means it never got that far, and a stale
-# hash left in place makes every FIPS call return IN_CORE_FIPS_E (-203).
-case "$TESTOUT" in
-    *"wolfSSL version"*)
-        ;;
-    *hash\ =\ [0-9A-Fa-f]*)
-        # main() in wolfcrypt/test/test.c returns 0 or 1; anything else died
-        # before it returned.
-        if test "$TESTRC" -ne 0 && test "$TESTRC" -ne 1
-        then
-            echo "fips-hash: testwolfcrypt exited $TESTRC, so it died before" >&2
-            echo "fips-hash: main() returned; fips_test.c NOT updated." >&2
-            printf '%s\n' "$TESTOUT" >&2
-            exit 1
-        fi
-        ;;
-    *)
-        echo "fips-hash: testwolfcrypt did not run; fips_test.c NOT updated." >&2
-        echo "fips-hash: the module would fail with -203." >&2
-        printf '%s\n' "$TESTOUT" >&2
-        exit 1
-        ;;
-esac
-
-# Take the hash exactly as long as reported: the in core digest is SHA-256 (64
+# The hash line is printed only when the in-core check fails, which is what this
+# script is for. Take it exactly as long as reported: the digest is SHA-256 (64
 # hex) up to FIPS v6.0.0 and SHA-512 (128 hex) from v7.0.0 on.
 NEWHASH=$(printf '%s\n' "$TESTOUT" | \
           sed -n 's/^hash = \([0-9A-Fa-f][0-9A-Fa-f]*\).*$/\1/p' | head -1)
 
-# A hash is printed only when the in-core check fails, so none means the value
-# already in fips_test.c is correct.
-if test -z "$NEWHASH"
+if test -n "$NEWHASH"
 then
-    echo "fips-hash: in-core hash already matches; fips_test.c unchanged."
+    # main() in wolfcrypt/test/test.c returns 0 or 1; anything else means it
+    # died before main() returned, so the hash it printed is not trustworthy.
+    if test "$TESTRC" -ne 0 && test "$TESTRC" -ne 1
+    then
+        echo "fips-hash: testwolfcrypt exited $TESTRC, so it died before" >&2
+        echo "fips-hash: main() returned; fips_test.c NOT updated." >&2
+        exit 1
+    fi
+    cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
+    sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak \
+        >wolfcrypt/src/fips_test.c
     exit 0
 fi
 
-cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
-sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak >wolfcrypt/src/fips_test.c
+# No hash line. The banner means it ran and the hash already matched; nothing at
+# all means it never ran, and keeping the stale hash would make every FIPS call
+# return IN_CORE_FIPS_E (-203).
+case "$TESTOUT" in
+    *"wolfSSL version"*)
+        echo "fips-hash: in-core hash already matches; fips_test.c unchanged."
+        ;;
+    *)
+        echo "fips-hash: testwolfcrypt did not run; fips_test.c NOT updated." >&2
+        echo "fips-hash: the module would fail with -203." >&2
+        exit 1
+        ;;
+esac
