@@ -53665,6 +53665,2394 @@ L_AES_XTS_decrypt_NEON_data_done
 	ret
 	ENDP
 	ENDIF
+	IF :DEF:WOLFSSL_AESXTS_STREAM
+	AREA	|.text|, CODE, READONLY
+	ALIGN	4
+	EXPORT	AES_XTS_encrypt_update_NEON
+AES_XTS_encrypt_update_NEON PROC
+	stp	x29, x30, [sp, #-112]!
+	add	x29, sp, #0
+	stp	x17, x19, [x29, #16]
+	stp	x20, x21, [x29, #32]
+	stp	D8, D9, [x29, #48]
+	stp	D10, D11, [x29, #64]
+	stp	D12, D13, [x29, #80]
+	stp	D14, D15, [x29, #96]
+	adrp	x17, L_AES_ARM64_NEON_te
+	add	x17, x17, L_AES_ARM64_NEON_te
+	adrp	x19, L_AES_ARM64_NEON_shift_rows_shuffle
+	add	x19, x19, L_AES_ARM64_NEON_shift_rows_shuffle
+	ld1	{V16.16B, V17.16B, V18.16B, V19.16B}, [x17], #0x40
+	ld1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x17], #0x40
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x17], #0x40
+	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x17]
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	movi	V15.16B, #27
+	ld1	{V3.2D}, [x19]
+	mov	x16, #0x87
+	ld1	{V2.2D}, [x4]
+	mov	x7, V2.D[0]
+	mov	x8, V2.D[1]
+	cmp	w2, #0x40
+	bcc	L_AES_XTS_encrypt_update_NEON_start_2
+L_AES_XTS_encrypt_update_NEON_loop_4
+	mov	x21, x3
+	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
+	ld1	{V4.16B}, [x21], #16
+	and	x15, x16, x8, asr 63
+	extr	x10, x8, x7, #63
+	eor	x9, x15, x7, lsl 1
+	and	x15, x16, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x15, x9, lsl 1
+	and	x15, x16, x12, asr 63
+	extr	x14, x12, x11, #63
+	eor	x13, x15, x11, lsl 1
+	mov	V8.D[0], x7
+	mov	V8.D[1], x8
+	mov	V9.D[0], x9
+	mov	V9.D[1], x10
+	mov	V10.D[0], x11
+	mov	V10.D[1], x12
+	mov	V11.D[0], x13
+	mov	V11.D[1], x14
+	eor	V0.16B, V0.16B, V8.16B
+	eor	V1.16B, V1.16B, V9.16B
+	eor	V2.16B, V2.16B, V10.16B
+	eor	V3.16B, V3.16B, V11.16B
+	rev32	V0.16B, V0.16B
+	rev32	V1.16B, V1.16B
+	rev32	V2.16B, V2.16B
+	rev32	V3.16B, V3.16B
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	eor	V2.16B, V2.16B, V4.16B
+	eor	V3.16B, V3.16B, V4.16B
+	sub	w20, w6, #2
+L_AES_XTS_encrypt_update_NEON_loop_nr_4
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
+	tbl	V6.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V2.16B
+	tbl	V7.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V3.16B
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V1.16B, V12.16B
+	eor	V10.16B, V2.16B, V12.16B
+	eor	V11.16B, V3.16B, V12.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	tbl	V10.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V10.16B
+	tbl	V11.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	eor	V8.16B, V0.16B, V13.16B
+	eor	V9.16B, V1.16B, V13.16B
+	eor	V10.16B, V2.16B, V13.16B
+	eor	V11.16B, V3.16B, V13.16B
+	tbl	V8.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	eor	V8.16B, V0.16B, V14.16B
+	eor	V9.16B, V1.16B, V14.16B
+	eor	V10.16B, V2.16B, V14.16B
+	eor	V11.16B, V3.16B, V14.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	tbl	V11.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	ld1	{V0.16B}, [x19]
+	tbl	V4.16B, {V4.16B}, V0.16B
+	tbl	V5.16B, {V5.16B}, V0.16B
+	tbl	V6.16B, {V6.16B}, V0.16B
+	tbl	V7.16B, {V7.16B}, V0.16B
+	sshr	V8.16B, V4.16B, #7
+	sshr	V9.16B, V5.16B, #7
+	sshr	V10.16B, V6.16B, #7
+	sshr	V11.16B, V7.16B, #7
+	shl	V12.16B, V4.16B, #1
+	shl	V13.16B, V5.16B, #1
+	shl	V14.16B, V6.16B, #1
+	shl	V15.16B, V7.16B, #1
+	movi	V0.16B, #27
+	and	V8.16B, V8.16B, V0.16B
+	and	V9.16B, V9.16B, V0.16B
+	and	V10.16B, V10.16B, V0.16B
+	and	V11.16B, V11.16B, V0.16B
+	eor	V8.16B, V8.16B, V12.16B
+	eor	V9.16B, V9.16B, V13.16B
+	eor	V10.16B, V10.16B, V14.16B
+	eor	V11.16B, V11.16B, V15.16B
+	eor	V0.16B, V8.16B, V4.16B
+	eor	V1.16B, V9.16B, V5.16B
+	eor	V2.16B, V10.16B, V6.16B
+	eor	V3.16B, V11.16B, V7.16B
+	shl	V12.4S, V0.4S, #8
+	shl	V13.4S, V1.4S, #8
+	shl	V14.4S, V2.4S, #8
+	shl	V15.4S, V3.4S, #8
+	sri	V12.4S, V0.4S, #24
+	sri	V13.4S, V1.4S, #24
+	sri	V14.4S, V2.4S, #24
+	sri	V15.4S, V3.4S, #24
+	shl	V0.4S, V4.4S, #24
+	shl	V1.4S, V5.4S, #24
+	shl	V2.4S, V6.4S, #24
+	shl	V3.4S, V7.4S, #24
+	sri	V0.4S, V4.4S, #8
+	sri	V1.4S, V5.4S, #8
+	sri	V2.4S, V6.4S, #8
+	sri	V3.4S, V7.4S, #8
+	rev32	V4.8H, V4.8H
+	rev32	V5.8H, V5.8H
+	rev32	V6.8H, V6.8H
+	rev32	V7.8H, V7.8H
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V1.16B
+	eor	V6.16B, V6.16B, V2.16B
+	eor	V7.16B, V7.16B, V3.16B
+	;   XOR in Key Schedule
+	ld1	{V0.2D}, [x21], #16
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V5.16B, V5.16B, V9.16B
+	eor	V6.16B, V6.16B, V10.16B
+	eor	V7.16B, V7.16B, V11.16B
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V0.16B
+	eor	V6.16B, V6.16B, V0.16B
+	eor	V7.16B, V7.16B, V0.16B
+	eor	V4.16B, V4.16B, V12.16B
+	eor	V5.16B, V5.16B, V13.16B
+	eor	V6.16B, V6.16B, V14.16B
+	eor	V7.16B, V7.16B, V15.16B
+	; Round Done
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V1.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V5.16B
+	tbl	V2.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V6.16B
+	tbl	V3.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V7.16B
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V5.16B, V12.16B
+	eor	V10.16B, V6.16B, V12.16B
+	eor	V11.16B, V7.16B, V12.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	tbl	V10.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V10.16B
+	tbl	V11.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	eor	V8.16B, V4.16B, V13.16B
+	eor	V9.16B, V5.16B, V13.16B
+	eor	V10.16B, V6.16B, V13.16B
+	eor	V11.16B, V7.16B, V13.16B
+	tbl	V8.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	eor	V8.16B, V4.16B, V14.16B
+	eor	V9.16B, V5.16B, V14.16B
+	eor	V10.16B, V6.16B, V14.16B
+	eor	V11.16B, V7.16B, V14.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	tbl	V11.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	ld1	{V4.16B}, [x19]
+	tbl	V0.16B, {V0.16B}, V4.16B
+	tbl	V1.16B, {V1.16B}, V4.16B
+	tbl	V2.16B, {V2.16B}, V4.16B
+	tbl	V3.16B, {V3.16B}, V4.16B
+	sshr	V8.16B, V0.16B, #7
+	sshr	V9.16B, V1.16B, #7
+	sshr	V10.16B, V2.16B, #7
+	sshr	V11.16B, V3.16B, #7
+	shl	V12.16B, V0.16B, #1
+	shl	V13.16B, V1.16B, #1
+	shl	V14.16B, V2.16B, #1
+	shl	V15.16B, V3.16B, #1
+	movi	V4.16B, #27
+	and	V8.16B, V8.16B, V4.16B
+	and	V9.16B, V9.16B, V4.16B
+	and	V10.16B, V10.16B, V4.16B
+	and	V11.16B, V11.16B, V4.16B
+	eor	V8.16B, V8.16B, V12.16B
+	eor	V9.16B, V9.16B, V13.16B
+	eor	V10.16B, V10.16B, V14.16B
+	eor	V11.16B, V11.16B, V15.16B
+	eor	V4.16B, V8.16B, V0.16B
+	eor	V5.16B, V9.16B, V1.16B
+	eor	V6.16B, V10.16B, V2.16B
+	eor	V7.16B, V11.16B, V3.16B
+	shl	V12.4S, V4.4S, #8
+	shl	V13.4S, V5.4S, #8
+	shl	V14.4S, V6.4S, #8
+	shl	V15.4S, V7.4S, #8
+	sri	V12.4S, V4.4S, #24
+	sri	V13.4S, V5.4S, #24
+	sri	V14.4S, V6.4S, #24
+	sri	V15.4S, V7.4S, #24
+	shl	V4.4S, V0.4S, #24
+	shl	V5.4S, V1.4S, #24
+	shl	V6.4S, V2.4S, #24
+	shl	V7.4S, V3.4S, #24
+	sri	V4.4S, V0.4S, #8
+	sri	V5.4S, V1.4S, #8
+	sri	V6.4S, V2.4S, #8
+	sri	V7.4S, V3.4S, #8
+	rev32	V0.8H, V0.8H
+	rev32	V1.8H, V1.8H
+	rev32	V2.8H, V2.8H
+	rev32	V3.8H, V3.8H
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V5.16B
+	eor	V2.16B, V2.16B, V6.16B
+	eor	V3.16B, V3.16B, V7.16B
+	;   XOR in Key Schedule
+	ld1	{V4.2D}, [x21], #16
+	eor	V0.16B, V0.16B, V8.16B
+	eor	V1.16B, V1.16B, V9.16B
+	eor	V2.16B, V2.16B, V10.16B
+	eor	V3.16B, V3.16B, V11.16B
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	eor	V2.16B, V2.16B, V4.16B
+	eor	V3.16B, V3.16B, V4.16B
+	eor	V0.16B, V0.16B, V12.16B
+	eor	V1.16B, V1.16B, V13.16B
+	eor	V2.16B, V2.16B, V14.16B
+	eor	V3.16B, V3.16B, V15.16B
+	; Round Done
+	subs	w20, w20, #2
+	bne	L_AES_XTS_encrypt_update_NEON_loop_nr_4
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
+	tbl	V6.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V2.16B
+	tbl	V7.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V3.16B
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V1.16B, V12.16B
+	eor	V10.16B, V2.16B, V12.16B
+	eor	V11.16B, V3.16B, V12.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	tbl	V10.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V10.16B
+	tbl	V11.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	eor	V8.16B, V0.16B, V13.16B
+	eor	V9.16B, V1.16B, V13.16B
+	eor	V10.16B, V2.16B, V13.16B
+	eor	V11.16B, V3.16B, V13.16B
+	tbl	V8.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	eor	V8.16B, V0.16B, V14.16B
+	eor	V9.16B, V1.16B, V14.16B
+	eor	V10.16B, V2.16B, V14.16B
+	eor	V11.16B, V3.16B, V14.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	tbl	V11.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	ld1	{V0.16B}, [x19]
+	tbl	V4.16B, {V4.16B}, V0.16B
+	tbl	V5.16B, {V5.16B}, V0.16B
+	tbl	V6.16B, {V6.16B}, V0.16B
+	tbl	V7.16B, {V7.16B}, V0.16B
+	sshr	V8.16B, V4.16B, #7
+	sshr	V9.16B, V5.16B, #7
+	sshr	V10.16B, V6.16B, #7
+	sshr	V11.16B, V7.16B, #7
+	shl	V12.16B, V4.16B, #1
+	shl	V13.16B, V5.16B, #1
+	shl	V14.16B, V6.16B, #1
+	shl	V15.16B, V7.16B, #1
+	movi	V0.16B, #27
+	and	V8.16B, V8.16B, V0.16B
+	and	V9.16B, V9.16B, V0.16B
+	and	V10.16B, V10.16B, V0.16B
+	and	V11.16B, V11.16B, V0.16B
+	eor	V8.16B, V8.16B, V12.16B
+	eor	V9.16B, V9.16B, V13.16B
+	eor	V10.16B, V10.16B, V14.16B
+	eor	V11.16B, V11.16B, V15.16B
+	eor	V0.16B, V8.16B, V4.16B
+	eor	V1.16B, V9.16B, V5.16B
+	eor	V2.16B, V10.16B, V6.16B
+	eor	V3.16B, V11.16B, V7.16B
+	shl	V12.4S, V0.4S, #8
+	shl	V13.4S, V1.4S, #8
+	shl	V14.4S, V2.4S, #8
+	shl	V15.4S, V3.4S, #8
+	sri	V12.4S, V0.4S, #24
+	sri	V13.4S, V1.4S, #24
+	sri	V14.4S, V2.4S, #24
+	sri	V15.4S, V3.4S, #24
+	shl	V0.4S, V4.4S, #24
+	shl	V1.4S, V5.4S, #24
+	shl	V2.4S, V6.4S, #24
+	shl	V3.4S, V7.4S, #24
+	sri	V0.4S, V4.4S, #8
+	sri	V1.4S, V5.4S, #8
+	sri	V2.4S, V6.4S, #8
+	sri	V3.4S, V7.4S, #8
+	rev32	V4.8H, V4.8H
+	rev32	V5.8H, V5.8H
+	rev32	V6.8H, V6.8H
+	rev32	V7.8H, V7.8H
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V1.16B
+	eor	V6.16B, V6.16B, V2.16B
+	eor	V7.16B, V7.16B, V3.16B
+	;   XOR in Key Schedule
+	ld1	{V0.2D}, [x21], #16
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V5.16B, V5.16B, V9.16B
+	eor	V6.16B, V6.16B, V10.16B
+	eor	V7.16B, V7.16B, V11.16B
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V0.16B
+	eor	V6.16B, V6.16B, V0.16B
+	eor	V7.16B, V7.16B, V0.16B
+	eor	V4.16B, V4.16B, V12.16B
+	eor	V5.16B, V5.16B, V13.16B
+	eor	V6.16B, V6.16B, V14.16B
+	eor	V7.16B, V7.16B, V15.16B
+	; Round Done
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V1.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V5.16B
+	tbl	V2.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V6.16B
+	tbl	V3.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V7.16B
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V5.16B, V12.16B
+	eor	V10.16B, V6.16B, V12.16B
+	eor	V11.16B, V7.16B, V12.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	tbl	V10.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V10.16B
+	tbl	V11.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	eor	V8.16B, V4.16B, V13.16B
+	eor	V9.16B, V5.16B, V13.16B
+	eor	V10.16B, V6.16B, V13.16B
+	eor	V11.16B, V7.16B, V13.16B
+	tbl	V8.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	eor	V8.16B, V4.16B, V14.16B
+	eor	V9.16B, V5.16B, V14.16B
+	eor	V10.16B, V6.16B, V14.16B
+	eor	V11.16B, V7.16B, V14.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	tbl	V11.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	ld1	{V4.16B}, [x19]
+	tbl	V0.16B, {V0.16B}, V4.16B
+	tbl	V1.16B, {V1.16B}, V4.16B
+	tbl	V2.16B, {V2.16B}, V4.16B
+	tbl	V3.16B, {V3.16B}, V4.16B
+	;   XOR in Key Schedule
+	ld1	{V4.2D}, [x21], #16
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	eor	V2.16B, V2.16B, V4.16B
+	eor	V3.16B, V3.16B, V4.16B
+	; Round Done
+	rev32	V0.16B, V0.16B
+	rev32	V1.16B, V1.16B
+	rev32	V2.16B, V2.16B
+	rev32	V3.16B, V3.16B
+	mov	V8.D[0], x7
+	mov	V8.D[1], x8
+	mov	V9.D[0], x9
+	mov	V9.D[1], x10
+	mov	V10.D[0], x11
+	mov	V10.D[1], x12
+	mov	V11.D[0], x13
+	mov	V11.D[1], x14
+	eor	V0.16B, V0.16B, V8.16B
+	eor	V1.16B, V1.16B, V9.16B
+	eor	V2.16B, V2.16B, V10.16B
+	eor	V3.16B, V3.16B, V11.16B
+	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
+	and	x15, x16, x14, asr 63
+	extr	x8, x14, x13, #63
+	eor	x7, x15, x13, lsl 1
+	sub	w2, w2, #0x40
+	cmp	w2, #0x40
+	bcs	L_AES_XTS_encrypt_update_NEON_loop_4
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	movi	V15.16B, #27
+L_AES_XTS_encrypt_update_NEON_start_2
+	cmp	w2, #32
+	bcc	L_AES_XTS_encrypt_update_NEON_start_1
+	mov	x21, x3
+	ld1	{V0.16B, V1.16B}, [x0], #32
+	ld1	{V4.16B}, [x21], #16
+	and	x15, x16, x8, asr 63
+	extr	x10, x8, x7, #63
+	eor	x9, x15, x7, lsl 1
+	and	x15, x16, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x15, x9, lsl 1
+	mov	V2.D[0], x7
+	mov	V2.D[1], x8
+	mov	V3.D[0], x9
+	mov	V3.D[1], x10
+	eor	V0.16B, V0.16B, V2.16B
+	eor	V1.16B, V1.16B, V3.16B
+	rev32	V0.16B, V0.16B
+	rev32	V1.16B, V1.16B
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	sub	w20, w6, #2
+L_AES_XTS_encrypt_update_NEON_loop_nr_2
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V1.16B, V12.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	eor	V10.16B, V0.16B, V13.16B
+	eor	V11.16B, V1.16B, V13.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	eor	V8.16B, V0.16B, V14.16B
+	eor	V9.16B, V1.16B, V14.16B
+	orr	V4.16B, V4.16B, V10.16B
+	orr	V5.16B, V5.16B, V11.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	ld1	{V0.16B}, [x19]
+	tbl	V4.16B, {V4.16B}, V0.16B
+	tbl	V5.16B, {V5.16B}, V0.16B
+	sshr	V8.16B, V4.16B, #7
+	sshr	V9.16B, V5.16B, #7
+	shl	V10.16B, V4.16B, #1
+	shl	V11.16B, V5.16B, #1
+	and	V8.16B, V8.16B, V15.16B
+	and	V9.16B, V9.16B, V15.16B
+	eor	V8.16B, V8.16B, V10.16B
+	eor	V9.16B, V9.16B, V11.16B
+	eor	V0.16B, V8.16B, V4.16B
+	eor	V1.16B, V9.16B, V5.16B
+	shl	V10.4S, V0.4S, #8
+	shl	V11.4S, V1.4S, #8
+	sri	V10.4S, V0.4S, #24
+	sri	V11.4S, V1.4S, #24
+	shl	V0.4S, V4.4S, #24
+	shl	V1.4S, V5.4S, #24
+	sri	V0.4S, V4.4S, #8
+	sri	V1.4S, V5.4S, #8
+	rev32	V4.8H, V4.8H
+	rev32	V5.8H, V5.8H
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V1.16B
+	;   XOR in Key Schedule
+	ld1	{V0.2D}, [x21], #16
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V5.16B, V5.16B, V9.16B
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V0.16B
+	eor	V4.16B, V4.16B, V10.16B
+	eor	V5.16B, V5.16B, V11.16B
+	; Round Done
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V5.16B, V12.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V1.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V5.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	eor	V10.16B, V4.16B, V13.16B
+	eor	V11.16B, V5.16B, V13.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	eor	V8.16B, V4.16B, V14.16B
+	eor	V9.16B, V5.16B, V14.16B
+	orr	V0.16B, V0.16B, V10.16B
+	orr	V1.16B, V1.16B, V11.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	ld1	{V4.16B}, [x19]
+	tbl	V0.16B, {V0.16B}, V4.16B
+	tbl	V1.16B, {V1.16B}, V4.16B
+	sshr	V8.16B, V0.16B, #7
+	sshr	V9.16B, V1.16B, #7
+	shl	V10.16B, V0.16B, #1
+	shl	V11.16B, V1.16B, #1
+	and	V8.16B, V8.16B, V15.16B
+	and	V9.16B, V9.16B, V15.16B
+	eor	V8.16B, V8.16B, V10.16B
+	eor	V9.16B, V9.16B, V11.16B
+	eor	V4.16B, V8.16B, V0.16B
+	eor	V5.16B, V9.16B, V1.16B
+	shl	V10.4S, V4.4S, #8
+	shl	V11.4S, V5.4S, #8
+	sri	V10.4S, V4.4S, #24
+	sri	V11.4S, V5.4S, #24
+	shl	V4.4S, V0.4S, #24
+	shl	V5.4S, V1.4S, #24
+	sri	V4.4S, V0.4S, #8
+	sri	V5.4S, V1.4S, #8
+	rev32	V0.8H, V0.8H
+	rev32	V1.8H, V1.8H
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V5.16B
+	;   XOR in Key Schedule
+	ld1	{V4.2D}, [x21], #16
+	eor	V0.16B, V0.16B, V8.16B
+	eor	V1.16B, V1.16B, V9.16B
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	eor	V0.16B, V0.16B, V10.16B
+	eor	V1.16B, V1.16B, V11.16B
+	; Round Done
+	subs	w20, w20, #2
+	bne	L_AES_XTS_encrypt_update_NEON_loop_nr_2
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V1.16B, V12.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	eor	V10.16B, V0.16B, V13.16B
+	eor	V11.16B, V1.16B, V13.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	eor	V8.16B, V0.16B, V14.16B
+	eor	V9.16B, V1.16B, V14.16B
+	orr	V4.16B, V4.16B, V10.16B
+	orr	V5.16B, V5.16B, V11.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	ld1	{V0.16B}, [x19]
+	tbl	V4.16B, {V4.16B}, V0.16B
+	tbl	V5.16B, {V5.16B}, V0.16B
+	sshr	V8.16B, V4.16B, #7
+	sshr	V9.16B, V5.16B, #7
+	shl	V10.16B, V4.16B, #1
+	shl	V11.16B, V5.16B, #1
+	and	V8.16B, V8.16B, V15.16B
+	and	V9.16B, V9.16B, V15.16B
+	eor	V8.16B, V8.16B, V10.16B
+	eor	V9.16B, V9.16B, V11.16B
+	eor	V0.16B, V8.16B, V4.16B
+	eor	V1.16B, V9.16B, V5.16B
+	shl	V10.4S, V0.4S, #8
+	shl	V11.4S, V1.4S, #8
+	sri	V10.4S, V0.4S, #24
+	sri	V11.4S, V1.4S, #24
+	shl	V0.4S, V4.4S, #24
+	shl	V1.4S, V5.4S, #24
+	sri	V0.4S, V4.4S, #8
+	sri	V1.4S, V5.4S, #8
+	rev32	V4.8H, V4.8H
+	rev32	V5.8H, V5.8H
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V1.16B
+	;   XOR in Key Schedule
+	ld1	{V0.2D}, [x21], #16
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V5.16B, V5.16B, V9.16B
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V0.16B
+	eor	V4.16B, V4.16B, V10.16B
+	eor	V5.16B, V5.16B, V11.16B
+	; Round Done
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V5.16B, V12.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V1.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V5.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	eor	V10.16B, V4.16B, V13.16B
+	eor	V11.16B, V5.16B, V13.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	eor	V8.16B, V4.16B, V14.16B
+	eor	V9.16B, V5.16B, V14.16B
+	orr	V0.16B, V0.16B, V10.16B
+	orr	V1.16B, V1.16B, V11.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	ld1	{V4.16B}, [x19]
+	tbl	V0.16B, {V0.16B}, V4.16B
+	tbl	V1.16B, {V1.16B}, V4.16B
+	;   XOR in Key Schedule
+	ld1	{V4.2D}, [x21], #16
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	; Round Done
+	rev32	V0.16B, V0.16B
+	rev32	V1.16B, V1.16B
+	eor	V0.16B, V0.16B, V2.16B
+	eor	V1.16B, V1.16B, V3.16B
+	st1	{V0.16B, V1.16B}, [x1], #32
+	and	x15, x16, x10, asr 63
+	extr	x8, x10, x9, #63
+	eor	x7, x15, x9, lsl 1
+	sub	w2, w2, #32
+L_AES_XTS_encrypt_update_NEON_start_1
+	ld1	{V3.2D}, [x19]
+	mov	V2.D[0], x7
+	mov	V2.D[1], x8
+	cmp	w2, #16
+	bcc	L_AES_XTS_encrypt_update_NEON_start_partial
+	mov	x21, x3
+	ld1	{V0.16B}, [x0], #16
+	ld1	{V4.2D}, [x21], #16
+	eor	V0.16B, V0.16B, V2.16B
+	rev32	V0.16B, V0.16B
+	eor	V0.16B, V0.16B, V4.16B
+	sub	w20, w6, #2
+L_AES_XTS_encrypt_update_NEON_loop_nr_1
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V0.16B, V13.16B
+	eor	V10.16B, V0.16B, V14.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V4.16B, V4.16B, V9.16B
+	tbl	V4.16B, {V4.16B}, V3.16B
+	ld1	{V0.2D}, [x21], #16
+	sshr	V10.16B, V4.16B, #7
+	shl	V9.16B, V4.16B, #1
+	and	V10.16B, V10.16B, V15.16B
+	eor	V10.16B, V10.16B, V9.16B
+	rev32	V8.8H, V4.8H
+	eor	V11.16B, V10.16B, V4.16B
+	eor	V10.16B, V10.16B, V8.16B
+	shl	V9.4S, V4.4S, #24
+	shl	V8.4S, V11.4S, #8
+	;   XOR in Key Schedule
+	eor	V10.16B, V10.16B, V0.16B
+	sri	V9.4S, V4.4S, #8
+	sri	V8.4S, V11.4S, #24
+	eor	V4.16B, V10.16B, V9.16B
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V4.16B, V13.16B
+	eor	V10.16B, V4.16B, V14.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V0.16B, V0.16B, V9.16B
+	tbl	V0.16B, {V0.16B}, V3.16B
+	ld1	{V4.2D}, [x21], #16
+	sshr	V10.16B, V0.16B, #7
+	shl	V9.16B, V0.16B, #1
+	and	V10.16B, V10.16B, V15.16B
+	eor	V10.16B, V10.16B, V9.16B
+	rev32	V8.8H, V0.8H
+	eor	V11.16B, V10.16B, V0.16B
+	eor	V10.16B, V10.16B, V8.16B
+	shl	V9.4S, V0.4S, #24
+	shl	V8.4S, V11.4S, #8
+	;   XOR in Key Schedule
+	eor	V10.16B, V10.16B, V4.16B
+	sri	V9.4S, V0.4S, #8
+	sri	V8.4S, V11.4S, #24
+	eor	V0.16B, V10.16B, V9.16B
+	eor	V0.16B, V0.16B, V8.16B
+	subs	w20, w20, #2
+	bne	L_AES_XTS_encrypt_update_NEON_loop_nr_1
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V0.16B, V13.16B
+	eor	V10.16B, V0.16B, V14.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V4.16B, V4.16B, V9.16B
+	tbl	V4.16B, {V4.16B}, V3.16B
+	ld1	{V0.2D}, [x21], #16
+	sshr	V10.16B, V4.16B, #7
+	shl	V9.16B, V4.16B, #1
+	and	V10.16B, V10.16B, V15.16B
+	eor	V10.16B, V10.16B, V9.16B
+	rev32	V8.8H, V4.8H
+	eor	V11.16B, V10.16B, V4.16B
+	eor	V10.16B, V10.16B, V8.16B
+	shl	V9.4S, V4.4S, #24
+	shl	V8.4S, V11.4S, #8
+	;   XOR in Key Schedule
+	eor	V10.16B, V10.16B, V0.16B
+	sri	V9.4S, V4.4S, #8
+	sri	V8.4S, V11.4S, #24
+	eor	V4.16B, V10.16B, V9.16B
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V4.16B, V13.16B
+	eor	V10.16B, V4.16B, V14.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V0.16B, V0.16B, V9.16B
+	tbl	V0.16B, {V0.16B}, V3.16B
+	ld1	{V4.2D}, [x21], #16
+	;   XOR in Key Schedule
+	eor	V0.16B, V0.16B, V4.16B
+	rev32	V0.16B, V0.16B
+	eor	V0.16B, V0.16B, V2.16B
+	st1	{V0.16B}, [x1], #16
+	subs	w2, w2, #16
+	and	x15, x16, x8, asr 63
+	extr	x8, x8, x7, #63
+	eor	x7, x15, x7, lsl 1
+	beq	L_AES_XTS_encrypt_update_NEON_data_done
+L_AES_XTS_encrypt_update_NEON_start_partial
+	cbz	w2, L_AES_XTS_encrypt_update_NEON_data_done
+	mov	V2.D[0], x7
+	mov	V2.D[1], x8
+	mov	x21, x3
+	sub	x1, x1, #16
+	ld1	{V0.16B}, [x1], #16
+	st1	{V0.2D}, [x5]
+	mov	w15, w2
+L_AES_XTS_encrypt_update_NEON_start_byte
+	ldrb	w9, [x5]
+	ldrb	w10, [x0], #1
+	strb	w9, [x1], #1
+	strb	w10, [x5], #1
+	subs	w15, w15, #1
+	bgt	L_AES_XTS_encrypt_update_NEON_start_byte
+	sub	x1, x1, x2
+	sub	x5, x5, x2
+	sub	x1, x1, #16
+	ld1	{V0.2D}, [x5]
+	ld1	{V4.2D}, [x21], #16
+	eor	V0.16B, V0.16B, V2.16B
+	rev32	V0.16B, V0.16B
+	eor	V0.16B, V0.16B, V4.16B
+	sub	w20, w6, #2
+L_AES_XTS_encrypt_update_NEON_loop_nr_partial
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V0.16B, V13.16B
+	eor	V10.16B, V0.16B, V14.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V4.16B, V4.16B, V9.16B
+	tbl	V4.16B, {V4.16B}, V3.16B
+	ld1	{V0.2D}, [x21], #16
+	sshr	V10.16B, V4.16B, #7
+	shl	V9.16B, V4.16B, #1
+	and	V10.16B, V10.16B, V15.16B
+	eor	V10.16B, V10.16B, V9.16B
+	rev32	V8.8H, V4.8H
+	eor	V11.16B, V10.16B, V4.16B
+	eor	V10.16B, V10.16B, V8.16B
+	shl	V9.4S, V4.4S, #24
+	shl	V8.4S, V11.4S, #8
+	;   XOR in Key Schedule
+	eor	V10.16B, V10.16B, V0.16B
+	sri	V9.4S, V4.4S, #8
+	sri	V8.4S, V11.4S, #24
+	eor	V4.16B, V10.16B, V9.16B
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V4.16B, V13.16B
+	eor	V10.16B, V4.16B, V14.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V0.16B, V0.16B, V9.16B
+	tbl	V0.16B, {V0.16B}, V3.16B
+	ld1	{V4.2D}, [x21], #16
+	sshr	V10.16B, V0.16B, #7
+	shl	V9.16B, V0.16B, #1
+	and	V10.16B, V10.16B, V15.16B
+	eor	V10.16B, V10.16B, V9.16B
+	rev32	V8.8H, V0.8H
+	eor	V11.16B, V10.16B, V0.16B
+	eor	V10.16B, V10.16B, V8.16B
+	shl	V9.4S, V0.4S, #24
+	shl	V8.4S, V11.4S, #8
+	;   XOR in Key Schedule
+	eor	V10.16B, V10.16B, V4.16B
+	sri	V9.4S, V0.4S, #8
+	sri	V8.4S, V11.4S, #24
+	eor	V0.16B, V10.16B, V9.16B
+	eor	V0.16B, V0.16B, V8.16B
+	subs	w20, w20, #2
+	bne	L_AES_XTS_encrypt_update_NEON_loop_nr_partial
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V0.16B, V13.16B
+	eor	V10.16B, V0.16B, V14.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V4.16B, V4.16B, V9.16B
+	tbl	V4.16B, {V4.16B}, V3.16B
+	ld1	{V0.2D}, [x21], #16
+	sshr	V10.16B, V4.16B, #7
+	shl	V9.16B, V4.16B, #1
+	and	V10.16B, V10.16B, V15.16B
+	eor	V10.16B, V10.16B, V9.16B
+	rev32	V8.8H, V4.8H
+	eor	V11.16B, V10.16B, V4.16B
+	eor	V10.16B, V10.16B, V8.16B
+	shl	V9.4S, V4.4S, #24
+	shl	V8.4S, V11.4S, #8
+	;   XOR in Key Schedule
+	eor	V10.16B, V10.16B, V0.16B
+	sri	V9.4S, V4.4S, #8
+	sri	V8.4S, V11.4S, #24
+	eor	V4.16B, V10.16B, V9.16B
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V4.16B, V13.16B
+	eor	V10.16B, V4.16B, V14.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V0.16B, V0.16B, V9.16B
+	tbl	V0.16B, {V0.16B}, V3.16B
+	ld1	{V4.2D}, [x21], #16
+	;   XOR in Key Schedule
+	eor	V0.16B, V0.16B, V4.16B
+	rev32	V0.16B, V0.16B
+	eor	V0.16B, V0.16B, V2.16B
+	st1	{V0.16B}, [x1]
+L_AES_XTS_encrypt_update_NEON_data_done
+	mov	V2.D[0], x7
+	mov	V2.D[1], x8
+	st1	{V2.2D}, [x4]
+	ldp	x17, x19, [x29, #16]
+	ldp	x20, x21, [x29, #32]
+	ldp	D8, D9, [x29, #48]
+	ldp	D10, D11, [x29, #64]
+	ldp	D12, D13, [x29, #80]
+	ldp	D14, D15, [x29, #96]
+	ldp	x29, x30, [sp], #0x70
+	ret
+	ENDP
+	IF :DEF:HAVE_AES_DECRYPT
+	AREA	|.text|, CODE, READONLY
+	ALIGN	4
+	EXPORT	AES_XTS_decrypt_update_NEON
+AES_XTS_decrypt_update_NEON PROC
+	stp	x29, x30, [sp, #-144]!
+	add	x29, sp, #0
+	stp	x17, x19, [x29, #24]
+	stp	x20, x21, [x29, #40]
+	stp	x22, x23, [x29, #56]
+	str	x24, [x29, #72]
+	stp	D8, D9, [x29, #80]
+	stp	D10, D11, [x29, #96]
+	stp	D12, D13, [x29, #112]
+	stp	D14, D15, [x29, #128]
+	adrp	x19, L_AES_ARM64_NEON_te
+	add	x19, x19, L_AES_ARM64_NEON_te
+	adrp	x20, L_AES_ARM64_NEON_td
+	add	x20, x20, L_AES_ARM64_NEON_td
+	adrp	x21, L_AES_ARM64_NEON_shift_rows_shuffle
+	add	x21, x21, L_AES_ARM64_NEON_shift_rows_shuffle
+	adrp	x22, L_AES_ARM64_NEON_shift_rows_invshuffle
+	add	x22, x22, L_AES_ARM64_NEON_shift_rows_invshuffle
+	ld1	{V16.16B, V17.16B, V18.16B, V19.16B}, [x19], #0x40
+	ld1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x19], #0x40
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x19], #0x40
+	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x19]
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	movi	V15.16B, #27
+	ld1	{V3.2D}, [x21]
+	mov	x16, #0x87
+	ands	w17, w2, #15
+	cset	w15, ne
+	sub	w2, w2, w15, lsl 4
+	ld1	{V2.2D}, [x4]
+	mov	x7, V2.D[0]
+	mov	x8, V2.D[1]
+	ld1	{V16.16B, V17.16B, V18.16B, V19.16B}, [x20], #0x40
+	ld1	{V20.16B, V21.16B, V22.16B, V23.16B}, [x20], #0x40
+	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x20], #0x40
+	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x20]
+	ld1	{V3.2D}, [x22]
+	cmp	w2, #0x40
+	bcc	L_AES_XTS_decrypt_update_NEON_start_2
+L_AES_XTS_decrypt_update_NEON_loop_4
+	mov	x24, x3
+	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
+	ld1	{V4.16B}, [x24], #16
+	and	x15, x16, x8, asr 63
+	extr	x10, x8, x7, #63
+	eor	x9, x15, x7, lsl 1
+	and	x15, x16, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x15, x9, lsl 1
+	and	x15, x16, x12, asr 63
+	extr	x14, x12, x11, #63
+	eor	x13, x15, x11, lsl 1
+	mov	V8.D[0], x7
+	mov	V8.D[1], x8
+	mov	V9.D[0], x9
+	mov	V9.D[1], x10
+	mov	V10.D[0], x11
+	mov	V10.D[1], x12
+	mov	V11.D[0], x13
+	mov	V11.D[1], x14
+	eor	V0.16B, V0.16B, V8.16B
+	eor	V1.16B, V1.16B, V9.16B
+	eor	V2.16B, V2.16B, V10.16B
+	eor	V3.16B, V3.16B, V11.16B
+	rev32	V0.16B, V0.16B
+	rev32	V1.16B, V1.16B
+	rev32	V2.16B, V2.16B
+	rev32	V3.16B, V3.16B
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	eor	V2.16B, V2.16B, V4.16B
+	eor	V3.16B, V3.16B, V4.16B
+	sub	w23, w6, #2
+L_AES_XTS_decrypt_update_NEON_loop_nr_4
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
+	tbl	V6.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V2.16B
+	tbl	V7.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V3.16B
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V1.16B, V12.16B
+	eor	V10.16B, V2.16B, V12.16B
+	eor	V11.16B, V3.16B, V12.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	tbl	V10.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V10.16B
+	tbl	V11.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	eor	V8.16B, V0.16B, V13.16B
+	eor	V9.16B, V1.16B, V13.16B
+	eor	V10.16B, V2.16B, V13.16B
+	eor	V11.16B, V3.16B, V13.16B
+	tbl	V8.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	eor	V8.16B, V0.16B, V14.16B
+	eor	V9.16B, V1.16B, V14.16B
+	eor	V10.16B, V2.16B, V14.16B
+	eor	V11.16B, V3.16B, V14.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	tbl	V11.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	ld1	{V0.16B}, [x22]
+	tbl	V4.16B, {V4.16B}, V0.16B
+	tbl	V5.16B, {V5.16B}, V0.16B
+	tbl	V6.16B, {V6.16B}, V0.16B
+	tbl	V7.16B, {V7.16B}, V0.16B
+	movi	V28.16B, #27
+	sshr	V8.16B, V4.16B, #7
+	sshr	V9.16B, V5.16B, #7
+	sshr	V10.16B, V6.16B, #7
+	sshr	V11.16B, V7.16B, #7
+	shl	V12.16B, V4.16B, #1
+	shl	V13.16B, V5.16B, #1
+	shl	V14.16B, V6.16B, #1
+	shl	V15.16B, V7.16B, #1
+	and	V8.16B, V8.16B, V28.16B
+	and	V9.16B, V9.16B, V28.16B
+	and	V10.16B, V10.16B, V28.16B
+	and	V11.16B, V11.16B, V28.16B
+	eor	V8.16B, V8.16B, V12.16B
+	eor	V9.16B, V9.16B, V13.16B
+	eor	V10.16B, V10.16B, V14.16B
+	eor	V11.16B, V11.16B, V15.16B
+	ushr	V12.16B, V4.16B, #6
+	ushr	V13.16B, V5.16B, #6
+	ushr	V14.16B, V6.16B, #6
+	ushr	V15.16B, V7.16B, #6
+	shl	V0.16B, V4.16B, #2
+	shl	V1.16B, V5.16B, #2
+	shl	V2.16B, V6.16B, #2
+	shl	V3.16B, V7.16B, #2
+	pmul	V12.16B, V12.16B, V28.16B
+	pmul	V13.16B, V13.16B, V28.16B
+	pmul	V14.16B, V14.16B, V28.16B
+	pmul	V15.16B, V15.16B, V28.16B
+	eor	V12.16B, V12.16B, V0.16B
+	eor	V13.16B, V13.16B, V1.16B
+	eor	V14.16B, V14.16B, V2.16B
+	eor	V15.16B, V15.16B, V3.16B
+	ushr	V0.16B, V4.16B, #5
+	ushr	V1.16B, V5.16B, #5
+	ushr	V2.16B, V6.16B, #5
+	ushr	V3.16B, V7.16B, #5
+	pmul	V0.16B, V0.16B, V28.16B
+	pmul	V1.16B, V1.16B, V28.16B
+	pmul	V2.16B, V2.16B, V28.16B
+	pmul	V3.16B, V3.16B, V28.16B
+	shl	V28.16B, V4.16B, #3
+	shl	V29.16B, V5.16B, #3
+	shl	V30.16B, V6.16B, #3
+	shl	V31.16B, V7.16B, #3
+	eor	V0.16B, V0.16B, V28.16B
+	eor	V1.16B, V1.16B, V29.16B
+	eor	V2.16B, V2.16B, V30.16B
+	eor	V3.16B, V3.16B, V31.16B
+	eor	V28.16B, V8.16B, V0.16B
+	eor	V29.16B, V9.16B, V1.16B
+	eor	V30.16B, V10.16B, V2.16B
+	eor	V31.16B, V11.16B, V3.16B
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V5.16B
+	eor	V2.16B, V2.16B, V6.16B
+	eor	V3.16B, V3.16B, V7.16B
+	eor	V8.16B, V12.16B, V0.16B
+	eor	V9.16B, V13.16B, V1.16B
+	eor	V10.16B, V14.16B, V2.16B
+	eor	V11.16B, V15.16B, V3.16B
+	eor	V12.16B, V12.16B, V28.16B
+	eor	V13.16B, V13.16B, V29.16B
+	eor	V14.16B, V14.16B, V30.16B
+	eor	V15.16B, V15.16B, V31.16B
+	eor	V28.16B, V28.16B, V4.16B
+	eor	V29.16B, V29.16B, V5.16B
+	eor	V30.16B, V30.16B, V6.16B
+	eor	V31.16B, V31.16B, V7.16B
+	shl	V4.4S, V28.4S, #8
+	shl	V5.4S, V29.4S, #8
+	shl	V6.4S, V30.4S, #8
+	shl	V7.4S, V31.4S, #8
+	rev32	V8.8H, V8.8H
+	rev32	V9.8H, V9.8H
+	rev32	V10.8H, V10.8H
+	rev32	V11.8H, V11.8H
+	sri	V4.4S, V28.4S, #24
+	sri	V5.4S, V29.4S, #24
+	sri	V6.4S, V30.4S, #24
+	sri	V7.4S, V31.4S, #24
+	eor	V4.16B, V4.16B, V12.16B
+	eor	V5.16B, V5.16B, V13.16B
+	eor	V6.16B, V6.16B, V14.16B
+	eor	V7.16B, V7.16B, V15.16B
+	shl	V28.4S, V0.4S, #24
+	shl	V29.4S, V1.4S, #24
+	shl	V30.4S, V2.4S, #24
+	shl	V31.4S, V3.4S, #24
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V5.16B, V5.16B, V9.16B
+	eor	V6.16B, V6.16B, V10.16B
+	eor	V7.16B, V7.16B, V11.16B
+	sri	V28.4S, V0.4S, #8
+	sri	V29.4S, V1.4S, #8
+	sri	V30.4S, V2.4S, #8
+	sri	V31.4S, V3.4S, #8
+	eor	V4.16B, V4.16B, V28.16B
+	eor	V5.16B, V5.16B, V29.16B
+	eor	V6.16B, V6.16B, V30.16B
+	eor	V7.16B, V7.16B, V31.16B
+	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x20]
+	;   XOR in Key Schedule
+	ld1	{V0.2D}, [x24], #16
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V0.16B
+	eor	V6.16B, V6.16B, V0.16B
+	eor	V7.16B, V7.16B, V0.16B
+	; Round Done
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V1.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V5.16B
+	tbl	V2.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V6.16B
+	tbl	V3.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V7.16B
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V5.16B, V12.16B
+	eor	V10.16B, V6.16B, V12.16B
+	eor	V11.16B, V7.16B, V12.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	tbl	V10.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V10.16B
+	tbl	V11.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	eor	V8.16B, V4.16B, V13.16B
+	eor	V9.16B, V5.16B, V13.16B
+	eor	V10.16B, V6.16B, V13.16B
+	eor	V11.16B, V7.16B, V13.16B
+	tbl	V8.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	eor	V8.16B, V4.16B, V14.16B
+	eor	V9.16B, V5.16B, V14.16B
+	eor	V10.16B, V6.16B, V14.16B
+	eor	V11.16B, V7.16B, V14.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	tbl	V11.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	ld1	{V4.16B}, [x22]
+	tbl	V0.16B, {V0.16B}, V4.16B
+	tbl	V1.16B, {V1.16B}, V4.16B
+	tbl	V2.16B, {V2.16B}, V4.16B
+	tbl	V3.16B, {V3.16B}, V4.16B
+	movi	V28.16B, #27
+	sshr	V8.16B, V0.16B, #7
+	sshr	V9.16B, V1.16B, #7
+	sshr	V10.16B, V2.16B, #7
+	sshr	V11.16B, V3.16B, #7
+	shl	V12.16B, V0.16B, #1
+	shl	V13.16B, V1.16B, #1
+	shl	V14.16B, V2.16B, #1
+	shl	V15.16B, V3.16B, #1
+	and	V8.16B, V8.16B, V28.16B
+	and	V9.16B, V9.16B, V28.16B
+	and	V10.16B, V10.16B, V28.16B
+	and	V11.16B, V11.16B, V28.16B
+	eor	V8.16B, V8.16B, V12.16B
+	eor	V9.16B, V9.16B, V13.16B
+	eor	V10.16B, V10.16B, V14.16B
+	eor	V11.16B, V11.16B, V15.16B
+	ushr	V12.16B, V0.16B, #6
+	ushr	V13.16B, V1.16B, #6
+	ushr	V14.16B, V2.16B, #6
+	ushr	V15.16B, V3.16B, #6
+	shl	V4.16B, V0.16B, #2
+	shl	V5.16B, V1.16B, #2
+	shl	V6.16B, V2.16B, #2
+	shl	V7.16B, V3.16B, #2
+	pmul	V12.16B, V12.16B, V28.16B
+	pmul	V13.16B, V13.16B, V28.16B
+	pmul	V14.16B, V14.16B, V28.16B
+	pmul	V15.16B, V15.16B, V28.16B
+	eor	V12.16B, V12.16B, V4.16B
+	eor	V13.16B, V13.16B, V5.16B
+	eor	V14.16B, V14.16B, V6.16B
+	eor	V15.16B, V15.16B, V7.16B
+	ushr	V4.16B, V0.16B, #5
+	ushr	V5.16B, V1.16B, #5
+	ushr	V6.16B, V2.16B, #5
+	ushr	V7.16B, V3.16B, #5
+	pmul	V4.16B, V4.16B, V28.16B
+	pmul	V5.16B, V5.16B, V28.16B
+	pmul	V6.16B, V6.16B, V28.16B
+	pmul	V7.16B, V7.16B, V28.16B
+	shl	V28.16B, V0.16B, #3
+	shl	V29.16B, V1.16B, #3
+	shl	V30.16B, V2.16B, #3
+	shl	V31.16B, V3.16B, #3
+	eor	V4.16B, V4.16B, V28.16B
+	eor	V5.16B, V5.16B, V29.16B
+	eor	V6.16B, V6.16B, V30.16B
+	eor	V7.16B, V7.16B, V31.16B
+	eor	V28.16B, V8.16B, V4.16B
+	eor	V29.16B, V9.16B, V5.16B
+	eor	V30.16B, V10.16B, V6.16B
+	eor	V31.16B, V11.16B, V7.16B
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V1.16B
+	eor	V6.16B, V6.16B, V2.16B
+	eor	V7.16B, V7.16B, V3.16B
+	eor	V8.16B, V12.16B, V4.16B
+	eor	V9.16B, V13.16B, V5.16B
+	eor	V10.16B, V14.16B, V6.16B
+	eor	V11.16B, V15.16B, V7.16B
+	eor	V12.16B, V12.16B, V28.16B
+	eor	V13.16B, V13.16B, V29.16B
+	eor	V14.16B, V14.16B, V30.16B
+	eor	V15.16B, V15.16B, V31.16B
+	eor	V28.16B, V28.16B, V0.16B
+	eor	V29.16B, V29.16B, V1.16B
+	eor	V30.16B, V30.16B, V2.16B
+	eor	V31.16B, V31.16B, V3.16B
+	shl	V0.4S, V28.4S, #8
+	shl	V1.4S, V29.4S, #8
+	shl	V2.4S, V30.4S, #8
+	shl	V3.4S, V31.4S, #8
+	rev32	V8.8H, V8.8H
+	rev32	V9.8H, V9.8H
+	rev32	V10.8H, V10.8H
+	rev32	V11.8H, V11.8H
+	sri	V0.4S, V28.4S, #24
+	sri	V1.4S, V29.4S, #24
+	sri	V2.4S, V30.4S, #24
+	sri	V3.4S, V31.4S, #24
+	eor	V0.16B, V0.16B, V12.16B
+	eor	V1.16B, V1.16B, V13.16B
+	eor	V2.16B, V2.16B, V14.16B
+	eor	V3.16B, V3.16B, V15.16B
+	shl	V28.4S, V4.4S, #24
+	shl	V29.4S, V5.4S, #24
+	shl	V30.4S, V6.4S, #24
+	shl	V31.4S, V7.4S, #24
+	eor	V0.16B, V0.16B, V8.16B
+	eor	V1.16B, V1.16B, V9.16B
+	eor	V2.16B, V2.16B, V10.16B
+	eor	V3.16B, V3.16B, V11.16B
+	sri	V28.4S, V4.4S, #8
+	sri	V29.4S, V5.4S, #8
+	sri	V30.4S, V6.4S, #8
+	sri	V31.4S, V7.4S, #8
+	eor	V0.16B, V0.16B, V28.16B
+	eor	V1.16B, V1.16B, V29.16B
+	eor	V2.16B, V2.16B, V30.16B
+	eor	V3.16B, V3.16B, V31.16B
+	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x20]
+	;   XOR in Key Schedule
+	ld1	{V4.2D}, [x24], #16
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	eor	V2.16B, V2.16B, V4.16B
+	eor	V3.16B, V3.16B, V4.16B
+	; Round Done
+	subs	w23, w23, #2
+	bne	L_AES_XTS_decrypt_update_NEON_loop_nr_4
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
+	tbl	V6.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V2.16B
+	tbl	V7.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V3.16B
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V1.16B, V12.16B
+	eor	V10.16B, V2.16B, V12.16B
+	eor	V11.16B, V3.16B, V12.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	tbl	V10.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V10.16B
+	tbl	V11.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	eor	V8.16B, V0.16B, V13.16B
+	eor	V9.16B, V1.16B, V13.16B
+	eor	V10.16B, V2.16B, V13.16B
+	eor	V11.16B, V3.16B, V13.16B
+	tbl	V8.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	eor	V8.16B, V0.16B, V14.16B
+	eor	V9.16B, V1.16B, V14.16B
+	eor	V10.16B, V2.16B, V14.16B
+	eor	V11.16B, V3.16B, V14.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	tbl	V11.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	orr	V6.16B, V6.16B, V10.16B
+	orr	V7.16B, V7.16B, V11.16B
+	ld1	{V0.16B}, [x22]
+	tbl	V4.16B, {V4.16B}, V0.16B
+	tbl	V5.16B, {V5.16B}, V0.16B
+	tbl	V6.16B, {V6.16B}, V0.16B
+	tbl	V7.16B, {V7.16B}, V0.16B
+	movi	V28.16B, #27
+	sshr	V8.16B, V4.16B, #7
+	sshr	V9.16B, V5.16B, #7
+	sshr	V10.16B, V6.16B, #7
+	sshr	V11.16B, V7.16B, #7
+	shl	V12.16B, V4.16B, #1
+	shl	V13.16B, V5.16B, #1
+	shl	V14.16B, V6.16B, #1
+	shl	V15.16B, V7.16B, #1
+	and	V8.16B, V8.16B, V28.16B
+	and	V9.16B, V9.16B, V28.16B
+	and	V10.16B, V10.16B, V28.16B
+	and	V11.16B, V11.16B, V28.16B
+	eor	V8.16B, V8.16B, V12.16B
+	eor	V9.16B, V9.16B, V13.16B
+	eor	V10.16B, V10.16B, V14.16B
+	eor	V11.16B, V11.16B, V15.16B
+	ushr	V12.16B, V4.16B, #6
+	ushr	V13.16B, V5.16B, #6
+	ushr	V14.16B, V6.16B, #6
+	ushr	V15.16B, V7.16B, #6
+	shl	V0.16B, V4.16B, #2
+	shl	V1.16B, V5.16B, #2
+	shl	V2.16B, V6.16B, #2
+	shl	V3.16B, V7.16B, #2
+	pmul	V12.16B, V12.16B, V28.16B
+	pmul	V13.16B, V13.16B, V28.16B
+	pmul	V14.16B, V14.16B, V28.16B
+	pmul	V15.16B, V15.16B, V28.16B
+	eor	V12.16B, V12.16B, V0.16B
+	eor	V13.16B, V13.16B, V1.16B
+	eor	V14.16B, V14.16B, V2.16B
+	eor	V15.16B, V15.16B, V3.16B
+	ushr	V0.16B, V4.16B, #5
+	ushr	V1.16B, V5.16B, #5
+	ushr	V2.16B, V6.16B, #5
+	ushr	V3.16B, V7.16B, #5
+	pmul	V0.16B, V0.16B, V28.16B
+	pmul	V1.16B, V1.16B, V28.16B
+	pmul	V2.16B, V2.16B, V28.16B
+	pmul	V3.16B, V3.16B, V28.16B
+	shl	V28.16B, V4.16B, #3
+	shl	V29.16B, V5.16B, #3
+	shl	V30.16B, V6.16B, #3
+	shl	V31.16B, V7.16B, #3
+	eor	V0.16B, V0.16B, V28.16B
+	eor	V1.16B, V1.16B, V29.16B
+	eor	V2.16B, V2.16B, V30.16B
+	eor	V3.16B, V3.16B, V31.16B
+	eor	V28.16B, V8.16B, V0.16B
+	eor	V29.16B, V9.16B, V1.16B
+	eor	V30.16B, V10.16B, V2.16B
+	eor	V31.16B, V11.16B, V3.16B
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V5.16B
+	eor	V2.16B, V2.16B, V6.16B
+	eor	V3.16B, V3.16B, V7.16B
+	eor	V8.16B, V12.16B, V0.16B
+	eor	V9.16B, V13.16B, V1.16B
+	eor	V10.16B, V14.16B, V2.16B
+	eor	V11.16B, V15.16B, V3.16B
+	eor	V12.16B, V12.16B, V28.16B
+	eor	V13.16B, V13.16B, V29.16B
+	eor	V14.16B, V14.16B, V30.16B
+	eor	V15.16B, V15.16B, V31.16B
+	eor	V28.16B, V28.16B, V4.16B
+	eor	V29.16B, V29.16B, V5.16B
+	eor	V30.16B, V30.16B, V6.16B
+	eor	V31.16B, V31.16B, V7.16B
+	shl	V4.4S, V28.4S, #8
+	shl	V5.4S, V29.4S, #8
+	shl	V6.4S, V30.4S, #8
+	shl	V7.4S, V31.4S, #8
+	rev32	V8.8H, V8.8H
+	rev32	V9.8H, V9.8H
+	rev32	V10.8H, V10.8H
+	rev32	V11.8H, V11.8H
+	sri	V4.4S, V28.4S, #24
+	sri	V5.4S, V29.4S, #24
+	sri	V6.4S, V30.4S, #24
+	sri	V7.4S, V31.4S, #24
+	eor	V4.16B, V4.16B, V12.16B
+	eor	V5.16B, V5.16B, V13.16B
+	eor	V6.16B, V6.16B, V14.16B
+	eor	V7.16B, V7.16B, V15.16B
+	shl	V28.4S, V0.4S, #24
+	shl	V29.4S, V1.4S, #24
+	shl	V30.4S, V2.4S, #24
+	shl	V31.4S, V3.4S, #24
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V5.16B, V5.16B, V9.16B
+	eor	V6.16B, V6.16B, V10.16B
+	eor	V7.16B, V7.16B, V11.16B
+	sri	V28.4S, V0.4S, #8
+	sri	V29.4S, V1.4S, #8
+	sri	V30.4S, V2.4S, #8
+	sri	V31.4S, V3.4S, #8
+	eor	V4.16B, V4.16B, V28.16B
+	eor	V5.16B, V5.16B, V29.16B
+	eor	V6.16B, V6.16B, V30.16B
+	eor	V7.16B, V7.16B, V31.16B
+	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x20]
+	;   XOR in Key Schedule
+	ld1	{V0.2D}, [x24], #16
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V0.16B
+	eor	V6.16B, V6.16B, V0.16B
+	eor	V7.16B, V7.16B, V0.16B
+	; Round Done
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V1.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V5.16B
+	tbl	V2.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V6.16B
+	tbl	V3.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V7.16B
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V5.16B, V12.16B
+	eor	V10.16B, V6.16B, V12.16B
+	eor	V11.16B, V7.16B, V12.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	tbl	V10.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V10.16B
+	tbl	V11.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	eor	V8.16B, V4.16B, V13.16B
+	eor	V9.16B, V5.16B, V13.16B
+	eor	V10.16B, V6.16B, V13.16B
+	eor	V11.16B, V7.16B, V13.16B
+	tbl	V8.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	eor	V8.16B, V4.16B, V14.16B
+	eor	V9.16B, V5.16B, V14.16B
+	eor	V10.16B, V6.16B, V14.16B
+	eor	V11.16B, V7.16B, V14.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	tbl	V11.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	orr	V2.16B, V2.16B, V10.16B
+	orr	V3.16B, V3.16B, V11.16B
+	ld1	{V4.16B}, [x22]
+	tbl	V0.16B, {V0.16B}, V4.16B
+	tbl	V1.16B, {V1.16B}, V4.16B
+	tbl	V2.16B, {V2.16B}, V4.16B
+	tbl	V3.16B, {V3.16B}, V4.16B
+	;   XOR in Key Schedule
+	ld1	{V4.2D}, [x24], #16
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	eor	V2.16B, V2.16B, V4.16B
+	eor	V3.16B, V3.16B, V4.16B
+	; Round Done
+	rev32	V0.16B, V0.16B
+	rev32	V1.16B, V1.16B
+	rev32	V2.16B, V2.16B
+	rev32	V3.16B, V3.16B
+	mov	V8.D[0], x7
+	mov	V8.D[1], x8
+	mov	V9.D[0], x9
+	mov	V9.D[1], x10
+	mov	V10.D[0], x11
+	mov	V10.D[1], x12
+	mov	V11.D[0], x13
+	mov	V11.D[1], x14
+	eor	V0.16B, V0.16B, V8.16B
+	eor	V1.16B, V1.16B, V9.16B
+	eor	V2.16B, V2.16B, V10.16B
+	eor	V3.16B, V3.16B, V11.16B
+	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
+	and	x15, x16, x14, asr 63
+	extr	x8, x14, x13, #63
+	eor	x7, x15, x13, lsl 1
+	sub	w2, w2, #0x40
+	cmp	w2, #0x40
+	bcs	L_AES_XTS_decrypt_update_NEON_loop_4
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	movi	V15.16B, #27
+L_AES_XTS_decrypt_update_NEON_start_2
+	cmp	w2, #32
+	bcc	L_AES_XTS_decrypt_update_NEON_start_1
+	mov	x24, x3
+	ld1	{V0.16B, V1.16B}, [x0], #32
+	ld1	{V4.16B}, [x24], #16
+	and	x15, x16, x8, asr 63
+	extr	x10, x8, x7, #63
+	eor	x9, x15, x7, lsl 1
+	and	x15, x16, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x15, x9, lsl 1
+	mov	V2.D[0], x7
+	mov	V2.D[1], x8
+	mov	V3.D[0], x9
+	mov	V3.D[1], x10
+	eor	V0.16B, V0.16B, V2.16B
+	eor	V1.16B, V1.16B, V3.16B
+	rev32	V0.16B, V0.16B
+	rev32	V1.16B, V1.16B
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	sub	w23, w6, #2
+L_AES_XTS_decrypt_update_NEON_loop_nr_2
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V1.16B, V12.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	eor	V10.16B, V0.16B, V13.16B
+	eor	V11.16B, V1.16B, V13.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	eor	V8.16B, V0.16B, V14.16B
+	eor	V9.16B, V1.16B, V14.16B
+	orr	V4.16B, V4.16B, V10.16B
+	orr	V5.16B, V5.16B, V11.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	ld1	{V0.16B}, [x22]
+	tbl	V4.16B, {V4.16B}, V0.16B
+	tbl	V5.16B, {V5.16B}, V0.16B
+	movi	V10.16B, #27
+	sshr	V8.16B, V4.16B, #7
+	sshr	V9.16B, V5.16B, #7
+	shl	V12.16B, V4.16B, #1
+	shl	V13.16B, V5.16B, #1
+	and	V8.16B, V8.16B, V10.16B
+	and	V9.16B, V9.16B, V10.16B
+	eor	V8.16B, V8.16B, V12.16B
+	eor	V9.16B, V9.16B, V13.16B
+	ushr	V12.16B, V4.16B, #6
+	ushr	V13.16B, V5.16B, #6
+	shl	V0.16B, V4.16B, #2
+	shl	V1.16B, V5.16B, #2
+	pmul	V12.16B, V12.16B, V10.16B
+	pmul	V13.16B, V13.16B, V10.16B
+	eor	V12.16B, V12.16B, V0.16B
+	eor	V13.16B, V13.16B, V1.16B
+	ushr	V0.16B, V4.16B, #5
+	ushr	V1.16B, V5.16B, #5
+	pmul	V0.16B, V0.16B, V10.16B
+	pmul	V1.16B, V1.16B, V10.16B
+	shl	V10.16B, V4.16B, #3
+	shl	V11.16B, V5.16B, #3
+	eor	V0.16B, V0.16B, V10.16B
+	eor	V1.16B, V1.16B, V11.16B
+	eor	V10.16B, V8.16B, V0.16B
+	eor	V11.16B, V9.16B, V1.16B
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V5.16B
+	eor	V8.16B, V12.16B, V0.16B
+	eor	V9.16B, V13.16B, V1.16B
+	eor	V12.16B, V12.16B, V10.16B
+	eor	V13.16B, V13.16B, V11.16B
+	eor	V10.16B, V10.16B, V4.16B
+	eor	V11.16B, V11.16B, V5.16B
+	shl	V4.4S, V10.4S, #8
+	shl	V5.4S, V11.4S, #8
+	rev32	V8.8H, V8.8H
+	rev32	V9.8H, V9.8H
+	sri	V4.4S, V10.4S, #24
+	sri	V5.4S, V11.4S, #24
+	eor	V4.16B, V4.16B, V12.16B
+	eor	V5.16B, V5.16B, V13.16B
+	shl	V10.4S, V0.4S, #24
+	shl	V11.4S, V1.4S, #24
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V5.16B, V5.16B, V9.16B
+	sri	V10.4S, V0.4S, #8
+	sri	V11.4S, V1.4S, #8
+	eor	V4.16B, V4.16B, V10.16B
+	eor	V5.16B, V5.16B, V11.16B
+	;   XOR in Key Schedule
+	ld1	{V0.2D}, [x24], #16
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V0.16B
+	; Round Done
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V5.16B, V12.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V1.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V5.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	eor	V10.16B, V4.16B, V13.16B
+	eor	V11.16B, V5.16B, V13.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	eor	V8.16B, V4.16B, V14.16B
+	eor	V9.16B, V5.16B, V14.16B
+	orr	V0.16B, V0.16B, V10.16B
+	orr	V1.16B, V1.16B, V11.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	ld1	{V4.16B}, [x22]
+	tbl	V0.16B, {V0.16B}, V4.16B
+	tbl	V1.16B, {V1.16B}, V4.16B
+	movi	V10.16B, #27
+	sshr	V8.16B, V0.16B, #7
+	sshr	V9.16B, V1.16B, #7
+	shl	V12.16B, V0.16B, #1
+	shl	V13.16B, V1.16B, #1
+	and	V8.16B, V8.16B, V10.16B
+	and	V9.16B, V9.16B, V10.16B
+	eor	V8.16B, V8.16B, V12.16B
+	eor	V9.16B, V9.16B, V13.16B
+	ushr	V12.16B, V0.16B, #6
+	ushr	V13.16B, V1.16B, #6
+	shl	V4.16B, V0.16B, #2
+	shl	V5.16B, V1.16B, #2
+	pmul	V12.16B, V12.16B, V10.16B
+	pmul	V13.16B, V13.16B, V10.16B
+	eor	V12.16B, V12.16B, V4.16B
+	eor	V13.16B, V13.16B, V5.16B
+	ushr	V4.16B, V0.16B, #5
+	ushr	V5.16B, V1.16B, #5
+	pmul	V4.16B, V4.16B, V10.16B
+	pmul	V5.16B, V5.16B, V10.16B
+	shl	V10.16B, V0.16B, #3
+	shl	V11.16B, V1.16B, #3
+	eor	V4.16B, V4.16B, V10.16B
+	eor	V5.16B, V5.16B, V11.16B
+	eor	V10.16B, V8.16B, V4.16B
+	eor	V11.16B, V9.16B, V5.16B
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V1.16B
+	eor	V8.16B, V12.16B, V4.16B
+	eor	V9.16B, V13.16B, V5.16B
+	eor	V12.16B, V12.16B, V10.16B
+	eor	V13.16B, V13.16B, V11.16B
+	eor	V10.16B, V10.16B, V0.16B
+	eor	V11.16B, V11.16B, V1.16B
+	shl	V0.4S, V10.4S, #8
+	shl	V1.4S, V11.4S, #8
+	rev32	V8.8H, V8.8H
+	rev32	V9.8H, V9.8H
+	sri	V0.4S, V10.4S, #24
+	sri	V1.4S, V11.4S, #24
+	eor	V0.16B, V0.16B, V12.16B
+	eor	V1.16B, V1.16B, V13.16B
+	shl	V10.4S, V4.4S, #24
+	shl	V11.4S, V5.4S, #24
+	eor	V0.16B, V0.16B, V8.16B
+	eor	V1.16B, V1.16B, V9.16B
+	sri	V10.4S, V4.4S, #8
+	sri	V11.4S, V5.4S, #8
+	eor	V0.16B, V0.16B, V10.16B
+	eor	V1.16B, V1.16B, V11.16B
+	;   XOR in Key Schedule
+	ld1	{V4.2D}, [x24], #16
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	; Round Done
+	subs	w23, w23, #2
+	bne	L_AES_XTS_decrypt_update_NEON_loop_nr_2
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V1.16B, V12.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V5.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V1.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	eor	V10.16B, V0.16B, V13.16B
+	eor	V11.16B, V1.16B, V13.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	eor	V8.16B, V0.16B, V14.16B
+	eor	V9.16B, V1.16B, V14.16B
+	orr	V4.16B, V4.16B, V10.16B
+	orr	V5.16B, V5.16B, V11.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V5.16B, V5.16B, V9.16B
+	ld1	{V0.16B}, [x22]
+	tbl	V4.16B, {V4.16B}, V0.16B
+	tbl	V5.16B, {V5.16B}, V0.16B
+	movi	V10.16B, #27
+	sshr	V8.16B, V4.16B, #7
+	sshr	V9.16B, V5.16B, #7
+	shl	V12.16B, V4.16B, #1
+	shl	V13.16B, V5.16B, #1
+	and	V8.16B, V8.16B, V10.16B
+	and	V9.16B, V9.16B, V10.16B
+	eor	V8.16B, V8.16B, V12.16B
+	eor	V9.16B, V9.16B, V13.16B
+	ushr	V12.16B, V4.16B, #6
+	ushr	V13.16B, V5.16B, #6
+	shl	V0.16B, V4.16B, #2
+	shl	V1.16B, V5.16B, #2
+	pmul	V12.16B, V12.16B, V10.16B
+	pmul	V13.16B, V13.16B, V10.16B
+	eor	V12.16B, V12.16B, V0.16B
+	eor	V13.16B, V13.16B, V1.16B
+	ushr	V0.16B, V4.16B, #5
+	ushr	V1.16B, V5.16B, #5
+	pmul	V0.16B, V0.16B, V10.16B
+	pmul	V1.16B, V1.16B, V10.16B
+	shl	V10.16B, V4.16B, #3
+	shl	V11.16B, V5.16B, #3
+	eor	V0.16B, V0.16B, V10.16B
+	eor	V1.16B, V1.16B, V11.16B
+	eor	V10.16B, V8.16B, V0.16B
+	eor	V11.16B, V9.16B, V1.16B
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V5.16B
+	eor	V8.16B, V12.16B, V0.16B
+	eor	V9.16B, V13.16B, V1.16B
+	eor	V12.16B, V12.16B, V10.16B
+	eor	V13.16B, V13.16B, V11.16B
+	eor	V10.16B, V10.16B, V4.16B
+	eor	V11.16B, V11.16B, V5.16B
+	shl	V4.4S, V10.4S, #8
+	shl	V5.4S, V11.4S, #8
+	rev32	V8.8H, V8.8H
+	rev32	V9.8H, V9.8H
+	sri	V4.4S, V10.4S, #24
+	sri	V5.4S, V11.4S, #24
+	eor	V4.16B, V4.16B, V12.16B
+	eor	V5.16B, V5.16B, V13.16B
+	shl	V10.4S, V0.4S, #24
+	shl	V11.4S, V1.4S, #24
+	eor	V4.16B, V4.16B, V8.16B
+	eor	V5.16B, V5.16B, V9.16B
+	sri	V10.4S, V0.4S, #8
+	sri	V11.4S, V1.4S, #8
+	eor	V4.16B, V4.16B, V10.16B
+	eor	V5.16B, V5.16B, V11.16B
+	;   XOR in Key Schedule
+	ld1	{V0.2D}, [x24], #16
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V5.16B, V5.16B, V0.16B
+	; Round Done
+	movi	V12.16B, #0x40
+	movi	V13.16B, #0x80
+	movi	V14.16B, #0xc0
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V5.16B, V12.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V1.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V5.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V9.16B
+	eor	V10.16B, V4.16B, V13.16B
+	eor	V11.16B, V5.16B, V13.16B
+	tbl	V10.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V10.16B
+	tbl	V11.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V11.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	eor	V8.16B, V4.16B, V14.16B
+	eor	V9.16B, V5.16B, V14.16B
+	orr	V0.16B, V0.16B, V10.16B
+	orr	V1.16B, V1.16B, V11.16B
+	tbl	V8.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V8.16B
+	tbl	V9.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V9.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V1.16B, V1.16B, V9.16B
+	ld1	{V4.16B}, [x22]
+	tbl	V0.16B, {V0.16B}, V4.16B
+	tbl	V1.16B, {V1.16B}, V4.16B
+	;   XOR in Key Schedule
+	ld1	{V4.2D}, [x24], #16
+	eor	V0.16B, V0.16B, V4.16B
+	eor	V1.16B, V1.16B, V4.16B
+	; Round Done
+	rev32	V0.16B, V0.16B
+	rev32	V1.16B, V1.16B
+	eor	V0.16B, V0.16B, V2.16B
+	eor	V1.16B, V1.16B, V3.16B
+	st1	{V0.16B, V1.16B}, [x1], #32
+	and	x15, x16, x10, asr 63
+	extr	x8, x10, x9, #63
+	eor	x7, x15, x9, lsl 1
+	sub	w2, w2, #32
+L_AES_XTS_decrypt_update_NEON_start_1
+	ld1	{V3.2D}, [x22]
+	mov	V2.D[0], x7
+	mov	V2.D[1], x8
+	cmp	w2, #16
+	bcc	L_AES_XTS_decrypt_update_NEON_start_partial
+	mov	x24, x3
+	ld1	{V0.16B}, [x0], #16
+	ld1	{V4.2D}, [x24], #16
+	eor	V0.16B, V0.16B, V2.16B
+	rev32	V0.16B, V0.16B
+	eor	V0.16B, V0.16B, V4.16B
+	sub	w23, w6, #2
+L_AES_XTS_decrypt_update_NEON_loop_nr_1
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V0.16B, V13.16B
+	eor	V10.16B, V0.16B, V14.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V4.16B, V4.16B, V9.16B
+	tbl	V4.16B, {V4.16B}, V3.16B
+	sshr	V10.16B, V4.16B, #7
+	ushr	V11.16B, V4.16B, #6
+	ushr	V8.16B, V4.16B, #5
+	and	V10.16B, V10.16B, V15.16B
+	pmul	V11.16B, V11.16B, V15.16B
+	pmul	V8.16B, V8.16B, V15.16B
+	shl	V9.16B, V4.16B, #1
+	eor	V10.16B, V10.16B, V9.16B
+	shl	V9.16B, V4.16B, #3
+	eor	V8.16B, V8.16B, V9.16B
+	shl	V9.16B, V4.16B, #2
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V10.16B, V8.16B
+	eor	V8.16B, V8.16B, V4.16B
+	eor	V10.16B, V11.16B, V8.16B
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V9.16B, V4.16B
+	shl	V4.4S, V9.4S, #8
+	rev32	V10.8H, V10.8H
+	sri	V4.4S, V9.4S, #24
+	eor	V4.16B, V4.16B, V11.16B
+	shl	V9.4S, V8.4S, #24
+	eor	V4.16B, V4.16B, V10.16B
+	sri	V9.4S, V8.4S, #8
+	eor	V4.16B, V4.16B, V9.16B
+	ld1	{V0.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V4.16B, V13.16B
+	eor	V10.16B, V4.16B, V14.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V0.16B, V0.16B, V9.16B
+	tbl	V0.16B, {V0.16B}, V3.16B
+	sshr	V10.16B, V0.16B, #7
+	ushr	V11.16B, V0.16B, #6
+	ushr	V8.16B, V0.16B, #5
+	and	V10.16B, V10.16B, V15.16B
+	pmul	V11.16B, V11.16B, V15.16B
+	pmul	V8.16B, V8.16B, V15.16B
+	shl	V9.16B, V0.16B, #1
+	eor	V10.16B, V10.16B, V9.16B
+	shl	V9.16B, V0.16B, #3
+	eor	V8.16B, V8.16B, V9.16B
+	shl	V9.16B, V0.16B, #2
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V10.16B, V8.16B
+	eor	V8.16B, V8.16B, V0.16B
+	eor	V10.16B, V11.16B, V8.16B
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V9.16B, V0.16B
+	shl	V0.4S, V9.4S, #8
+	rev32	V10.8H, V10.8H
+	sri	V0.4S, V9.4S, #24
+	eor	V0.16B, V0.16B, V11.16B
+	shl	V9.4S, V8.4S, #24
+	eor	V0.16B, V0.16B, V10.16B
+	sri	V9.4S, V8.4S, #8
+	eor	V0.16B, V0.16B, V9.16B
+	ld1	{V4.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V0.16B, V0.16B, V4.16B
+	subs	w23, w23, #2
+	bne	L_AES_XTS_decrypt_update_NEON_loop_nr_1
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V0.16B, V13.16B
+	eor	V10.16B, V0.16B, V14.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V4.16B, V4.16B, V9.16B
+	tbl	V4.16B, {V4.16B}, V3.16B
+	sshr	V10.16B, V4.16B, #7
+	ushr	V11.16B, V4.16B, #6
+	ushr	V8.16B, V4.16B, #5
+	and	V10.16B, V10.16B, V15.16B
+	pmul	V11.16B, V11.16B, V15.16B
+	pmul	V8.16B, V8.16B, V15.16B
+	shl	V9.16B, V4.16B, #1
+	eor	V10.16B, V10.16B, V9.16B
+	shl	V9.16B, V4.16B, #3
+	eor	V8.16B, V8.16B, V9.16B
+	shl	V9.16B, V4.16B, #2
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V10.16B, V8.16B
+	eor	V8.16B, V8.16B, V4.16B
+	eor	V10.16B, V11.16B, V8.16B
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V9.16B, V4.16B
+	shl	V4.4S, V9.4S, #8
+	rev32	V10.8H, V10.8H
+	sri	V4.4S, V9.4S, #24
+	eor	V4.16B, V4.16B, V11.16B
+	shl	V9.4S, V8.4S, #24
+	eor	V4.16B, V4.16B, V10.16B
+	sri	V9.4S, V8.4S, #8
+	eor	V4.16B, V4.16B, V9.16B
+	ld1	{V0.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V4.16B, V13.16B
+	eor	V10.16B, V4.16B, V14.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V0.16B, V0.16B, V9.16B
+	tbl	V0.16B, {V0.16B}, V3.16B
+	ld1	{V4.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V0.16B, V0.16B, V4.16B
+	rev32	V0.16B, V0.16B
+	eor	V0.16B, V0.16B, V2.16B
+	st1	{V0.16B}, [x1], #16
+	sub	w2, w2, #16
+	and	x15, x16, x8, asr 63
+	extr	x8, x8, x7, #63
+	eor	x7, x15, x7, lsl 1
+	cbz	w17, L_AES_XTS_decrypt_update_NEON_data_done
+L_AES_XTS_decrypt_update_NEON_start_partial
+	mov	w2, w17
+	cbz	w2, L_AES_XTS_decrypt_update_NEON_data_done
+	mov	V2.D[0], x7
+	mov	V2.D[1], x8
+	and	x15, x16, x8, asr 63
+	extr	x10, x8, x7, #63
+	eor	x9, x15, x7, lsl 1
+	mov	V1.D[0], x9
+	mov	V1.D[1], x10
+	mov	x24, x3
+	ld1	{V0.16B}, [x0], #16
+	ld1	{V4.2D}, [x24], #16
+	eor	V0.16B, V0.16B, V1.16B
+	rev32	V0.16B, V0.16B
+	eor	V0.16B, V0.16B, V4.16B
+	sub	w23, w6, #2
+L_AES_XTS_decrypt_update_NEON_loop_nr_partial_1
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V0.16B, V13.16B
+	eor	V10.16B, V0.16B, V14.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V4.16B, V4.16B, V9.16B
+	tbl	V4.16B, {V4.16B}, V3.16B
+	sshr	V10.16B, V4.16B, #7
+	ushr	V11.16B, V4.16B, #6
+	ushr	V8.16B, V4.16B, #5
+	and	V10.16B, V10.16B, V15.16B
+	pmul	V11.16B, V11.16B, V15.16B
+	pmul	V8.16B, V8.16B, V15.16B
+	shl	V9.16B, V4.16B, #1
+	eor	V10.16B, V10.16B, V9.16B
+	shl	V9.16B, V4.16B, #3
+	eor	V8.16B, V8.16B, V9.16B
+	shl	V9.16B, V4.16B, #2
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V10.16B, V8.16B
+	eor	V8.16B, V8.16B, V4.16B
+	eor	V10.16B, V11.16B, V8.16B
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V9.16B, V4.16B
+	shl	V4.4S, V9.4S, #8
+	rev32	V10.8H, V10.8H
+	sri	V4.4S, V9.4S, #24
+	eor	V4.16B, V4.16B, V11.16B
+	shl	V9.4S, V8.4S, #24
+	eor	V4.16B, V4.16B, V10.16B
+	sri	V9.4S, V8.4S, #8
+	eor	V4.16B, V4.16B, V9.16B
+	ld1	{V0.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V4.16B, V13.16B
+	eor	V10.16B, V4.16B, V14.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V0.16B, V0.16B, V9.16B
+	tbl	V0.16B, {V0.16B}, V3.16B
+	sshr	V10.16B, V0.16B, #7
+	ushr	V11.16B, V0.16B, #6
+	ushr	V8.16B, V0.16B, #5
+	and	V10.16B, V10.16B, V15.16B
+	pmul	V11.16B, V11.16B, V15.16B
+	pmul	V8.16B, V8.16B, V15.16B
+	shl	V9.16B, V0.16B, #1
+	eor	V10.16B, V10.16B, V9.16B
+	shl	V9.16B, V0.16B, #3
+	eor	V8.16B, V8.16B, V9.16B
+	shl	V9.16B, V0.16B, #2
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V10.16B, V8.16B
+	eor	V8.16B, V8.16B, V0.16B
+	eor	V10.16B, V11.16B, V8.16B
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V9.16B, V0.16B
+	shl	V0.4S, V9.4S, #8
+	rev32	V10.8H, V10.8H
+	sri	V0.4S, V9.4S, #24
+	eor	V0.16B, V0.16B, V11.16B
+	shl	V9.4S, V8.4S, #24
+	eor	V0.16B, V0.16B, V10.16B
+	sri	V9.4S, V8.4S, #8
+	eor	V0.16B, V0.16B, V9.16B
+	ld1	{V4.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V0.16B, V0.16B, V4.16B
+	subs	w23, w23, #2
+	bne	L_AES_XTS_decrypt_update_NEON_loop_nr_partial_1
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V0.16B, V13.16B
+	eor	V10.16B, V0.16B, V14.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V4.16B, V4.16B, V9.16B
+	tbl	V4.16B, {V4.16B}, V3.16B
+	sshr	V10.16B, V4.16B, #7
+	ushr	V11.16B, V4.16B, #6
+	ushr	V8.16B, V4.16B, #5
+	and	V10.16B, V10.16B, V15.16B
+	pmul	V11.16B, V11.16B, V15.16B
+	pmul	V8.16B, V8.16B, V15.16B
+	shl	V9.16B, V4.16B, #1
+	eor	V10.16B, V10.16B, V9.16B
+	shl	V9.16B, V4.16B, #3
+	eor	V8.16B, V8.16B, V9.16B
+	shl	V9.16B, V4.16B, #2
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V10.16B, V8.16B
+	eor	V8.16B, V8.16B, V4.16B
+	eor	V10.16B, V11.16B, V8.16B
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V9.16B, V4.16B
+	shl	V4.4S, V9.4S, #8
+	rev32	V10.8H, V10.8H
+	sri	V4.4S, V9.4S, #24
+	eor	V4.16B, V4.16B, V11.16B
+	shl	V9.4S, V8.4S, #24
+	eor	V4.16B, V4.16B, V10.16B
+	sri	V9.4S, V8.4S, #8
+	eor	V4.16B, V4.16B, V9.16B
+	ld1	{V0.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V4.16B, V13.16B
+	eor	V10.16B, V4.16B, V14.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V0.16B, V0.16B, V9.16B
+	tbl	V0.16B, {V0.16B}, V3.16B
+	ld1	{V4.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V0.16B, V0.16B, V4.16B
+	rev32	V0.16B, V0.16B
+	eor	V0.16B, V0.16B, V1.16B
+	st1	{V0.2D}, [x5]
+	add	x1, x1, #16
+	mov	w15, w2
+L_AES_XTS_decrypt_update_NEON_start_byte
+	ldrb	w9, [x5]
+	ldrb	w10, [x0], #1
+	strb	w9, [x1], #1
+	strb	w10, [x5], #1
+	subs	w15, w15, #1
+	bgt	L_AES_XTS_decrypt_update_NEON_start_byte
+	sub	x1, x1, x2
+	sub	x5, x5, x2
+	sub	x1, x1, #16
+	mov	x24, x3
+	ld1	{V0.2D}, [x5]
+	ld1	{V4.2D}, [x24], #16
+	eor	V0.16B, V0.16B, V2.16B
+	rev32	V0.16B, V0.16B
+	eor	V0.16B, V0.16B, V4.16B
+	sub	w23, w6, #2
+L_AES_XTS_decrypt_update_NEON_loop_nr_partial_2
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V0.16B, V13.16B
+	eor	V10.16B, V0.16B, V14.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V4.16B, V4.16B, V9.16B
+	tbl	V4.16B, {V4.16B}, V3.16B
+	sshr	V10.16B, V4.16B, #7
+	ushr	V11.16B, V4.16B, #6
+	ushr	V8.16B, V4.16B, #5
+	and	V10.16B, V10.16B, V15.16B
+	pmul	V11.16B, V11.16B, V15.16B
+	pmul	V8.16B, V8.16B, V15.16B
+	shl	V9.16B, V4.16B, #1
+	eor	V10.16B, V10.16B, V9.16B
+	shl	V9.16B, V4.16B, #3
+	eor	V8.16B, V8.16B, V9.16B
+	shl	V9.16B, V4.16B, #2
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V10.16B, V8.16B
+	eor	V8.16B, V8.16B, V4.16B
+	eor	V10.16B, V11.16B, V8.16B
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V9.16B, V4.16B
+	shl	V4.4S, V9.4S, #8
+	rev32	V10.8H, V10.8H
+	sri	V4.4S, V9.4S, #24
+	eor	V4.16B, V4.16B, V11.16B
+	shl	V9.4S, V8.4S, #24
+	eor	V4.16B, V4.16B, V10.16B
+	sri	V9.4S, V8.4S, #8
+	eor	V4.16B, V4.16B, V9.16B
+	ld1	{V0.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V4.16B, V13.16B
+	eor	V10.16B, V4.16B, V14.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V0.16B, V0.16B, V9.16B
+	tbl	V0.16B, {V0.16B}, V3.16B
+	sshr	V10.16B, V0.16B, #7
+	ushr	V11.16B, V0.16B, #6
+	ushr	V8.16B, V0.16B, #5
+	and	V10.16B, V10.16B, V15.16B
+	pmul	V11.16B, V11.16B, V15.16B
+	pmul	V8.16B, V8.16B, V15.16B
+	shl	V9.16B, V0.16B, #1
+	eor	V10.16B, V10.16B, V9.16B
+	shl	V9.16B, V0.16B, #3
+	eor	V8.16B, V8.16B, V9.16B
+	shl	V9.16B, V0.16B, #2
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V10.16B, V8.16B
+	eor	V8.16B, V8.16B, V0.16B
+	eor	V10.16B, V11.16B, V8.16B
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V9.16B, V0.16B
+	shl	V0.4S, V9.4S, #8
+	rev32	V10.8H, V10.8H
+	sri	V0.4S, V9.4S, #24
+	eor	V0.16B, V0.16B, V11.16B
+	shl	V9.4S, V8.4S, #24
+	eor	V0.16B, V0.16B, V10.16B
+	sri	V9.4S, V8.4S, #8
+	eor	V0.16B, V0.16B, V9.16B
+	ld1	{V4.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V0.16B, V0.16B, V4.16B
+	subs	w23, w23, #2
+	bne	L_AES_XTS_decrypt_update_NEON_loop_nr_partial_2
+	eor	V8.16B, V0.16B, V12.16B
+	eor	V9.16B, V0.16B, V13.16B
+	eor	V10.16B, V0.16B, V14.16B
+	tbl	V4.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V0.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V4.16B, V4.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V4.16B, V4.16B, V9.16B
+	tbl	V4.16B, {V4.16B}, V3.16B
+	sshr	V10.16B, V4.16B, #7
+	ushr	V11.16B, V4.16B, #6
+	ushr	V8.16B, V4.16B, #5
+	and	V10.16B, V10.16B, V15.16B
+	pmul	V11.16B, V11.16B, V15.16B
+	pmul	V8.16B, V8.16B, V15.16B
+	shl	V9.16B, V4.16B, #1
+	eor	V10.16B, V10.16B, V9.16B
+	shl	V9.16B, V4.16B, #3
+	eor	V8.16B, V8.16B, V9.16B
+	shl	V9.16B, V4.16B, #2
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V10.16B, V8.16B
+	eor	V8.16B, V8.16B, V4.16B
+	eor	V10.16B, V11.16B, V8.16B
+	eor	V11.16B, V11.16B, V9.16B
+	eor	V9.16B, V9.16B, V4.16B
+	shl	V4.4S, V9.4S, #8
+	rev32	V10.8H, V10.8H
+	sri	V4.4S, V9.4S, #24
+	eor	V4.16B, V4.16B, V11.16B
+	shl	V9.4S, V8.4S, #24
+	eor	V4.16B, V4.16B, V10.16B
+	sri	V9.4S, V8.4S, #8
+	eor	V4.16B, V4.16B, V9.16B
+	ld1	{V0.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V4.16B, V4.16B, V0.16B
+	eor	V8.16B, V4.16B, V12.16B
+	eor	V9.16B, V4.16B, V13.16B
+	eor	V10.16B, V4.16B, V14.16B
+	tbl	V0.16B, {V16.16B, V17.16B, V18.16B, V19.16B}, V4.16B
+	tbl	V8.16B, {V20.16B, V21.16B, V22.16B, V23.16B}, V8.16B
+	tbl	V9.16B, {V24.16B, V25.16B, V26.16B, V27.16B}, V9.16B
+	tbl	V10.16B, {V28.16B, V29.16B, V30.16B, V31.16B}, V10.16B
+	orr	V0.16B, V0.16B, V8.16B
+	orr	V9.16B, V9.16B, V10.16B
+	orr	V0.16B, V0.16B, V9.16B
+	tbl	V0.16B, {V0.16B}, V3.16B
+	ld1	{V4.2D}, [x24], #16
+	;   XOR in Key Schedule
+	eor	V0.16B, V0.16B, V4.16B
+	rev32	V0.16B, V0.16B
+	eor	V0.16B, V0.16B, V2.16B
+	st1	{V0.16B}, [x1]
+L_AES_XTS_decrypt_update_NEON_data_done
+	mov	V2.D[0], x7
+	mov	V2.D[1], x8
+	st1	{V2.2D}, [x4]
+	ldp	x17, x19, [x29, #24]
+	ldp	x20, x21, [x29, #40]
+	ldp	x22, x23, [x29, #56]
+	ldr	x24, [x29, #72]
+	ldp	D8, D9, [x29, #80]
+	ldp	D10, D11, [x29, #96]
+	ldp	D12, D13, [x29, #112]
+	ldp	D14, D15, [x29, #128]
+	ldp	x29, x30, [sp], #0x90
+	ret
+	ENDP
+	ENDIF
+	ENDIF
 	ENDIF
 	IF :DEF:WOLFSSL_AESGCM_SIV
 	AREA	|.text|, CODE, READONLY
@@ -60416,6 +62804,1528 @@ L_AES_XTS_decrypt_done_data
 	ldp	x29, x30, [sp], #0x70
 	ret
 	ENDP
+	ENDIF
+	IF :DEF:WOLFSSL_AESXTS_STREAM
+	AREA	|.text|, CODE, READONLY
+	ALIGN	4
+	EXPORT	AES_XTS_encrypt_update
+AES_XTS_encrypt_update PROC
+	stp	x29, x30, [sp, #-80]!
+	add	x29, sp, #0
+	stp	x17, x19, [x29, #16]
+	stp	x20, x21, [x29, #32]
+	stp	x22, x23, [x29, #48]
+	stp	x24, x25, [x29, #64]
+	adrp	x7, L_AES_ARM64_te
+	add	x7, x7, L_AES_ARM64_te
+	mov	x8, #0x87
+	ldp	x20, x21, [x4]
+L_AES_XTS_encrypt_update_loop_block
+	mov	x25, x3
+	ldp	x9, x10, [x0]
+	ldp	x13, x14, [x25], #16
+	eor	x9, x9, x20
+	eor	x10, x10, x21
+	rev32	x9, x9
+	rev32	x10, x10
+	; Round: 0 - XOR in key schedule
+	eor	x9, x9, x13
+	eor	x10, x10, x14
+	sub	w24, w6, #2
+L_AES_XTS_encrypt_update_loop_nr
+	ubfx	x13, x9, #48, #8
+	ubfx	x16, x9, #24, #8
+	ubfx	x17, x10, #8, #8
+	ubfx	x19, x10, #32, #8
+	ldr	x11, [x7]
+	ldr	x11, [x7, #64]
+	ldr	x11, [x7, #128]
+	ldr	x11, [x7, #192]
+	ldr	x11, [x7, #256]
+	ldr	x11, [x7, #320]
+	ldr	x11, [x7, #384]
+	ldr	x11, [x7, #448]
+	ldr	x11, [x7, #512]
+	ldr	x11, [x7, #576]
+	ldr	x11, [x7, #640]
+	ldr	x11, [x7, #704]
+	ldr	x11, [x7, #768]
+	ldr	x11, [x7, #832]
+	ldr	x11, [x7, #896]
+	ldr	x11, [x7, #960]
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x14, x10, #16, #8
+	eor	w13, w13, w16, ror 24
+	ubfx	x16, x9, #56, #8
+	eor	w13, w13, w17, ror 8
+	ubfx	x17, x10, #40, #8
+	eor	w13, w13, w19, ror 16
+	ubfx	x19, x9, #0, #8
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x15, x10, #48, #8
+	eor	w14, w14, w16, ror 24
+	ubfx	x16, x10, #24, #8
+	eor	w14, w14, w17, ror 8
+	ubfx	x17, x9, #8, #8
+	eor	w14, w14, w19, ror 16
+	ubfx	x19, x9, #32, #8
+	bfi	x13, x14, #32, #32
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x11, x10, #0, #8
+	eor	w15, w15, w16, ror 24
+	ubfx	x16, x9, #16, #8
+	eor	w15, w15, w17, ror 8
+	ubfx	x17, x10, #56, #8
+	eor	w14, w15, w19, ror 16
+	ubfx	x19, x9, #40, #8
+	ldr	w11, [x7, x11, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	eor	w17, w17, w11, ror 24
+	ldp	x9, x10, [x25], #16
+	eor	w16, w16, w17, ror 24
+	eor	w16, w16, w19, ror 8
+	bfi	x14, x16, #32, #32
+	;   XOR in Key Schedule
+	eor	x13, x13, x9
+	eor	x14, x14, x10
+	ubfx	x9, x13, #48, #8
+	ubfx	x12, x13, #24, #8
+	ubfx	x17, x14, #8, #8
+	ubfx	x19, x14, #32, #8
+	ldr	x15, [x7]
+	ldr	x15, [x7, #64]
+	ldr	x15, [x7, #128]
+	ldr	x15, [x7, #192]
+	ldr	x15, [x7, #256]
+	ldr	x15, [x7, #320]
+	ldr	x15, [x7, #384]
+	ldr	x15, [x7, #448]
+	ldr	x15, [x7, #512]
+	ldr	x15, [x7, #576]
+	ldr	x15, [x7, #640]
+	ldr	x15, [x7, #704]
+	ldr	x15, [x7, #768]
+	ldr	x15, [x7, #832]
+	ldr	x15, [x7, #896]
+	ldr	x15, [x7, #960]
+	ldr	w9, [x7, x9, LSL 2]
+	ldr	w12, [x7, x12, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x10, x14, #16, #8
+	eor	w9, w9, w12, ror 24
+	ubfx	x12, x13, #56, #8
+	eor	w9, w9, w17, ror 8
+	ubfx	x17, x14, #40, #8
+	eor	w9, w9, w19, ror 16
+	ubfx	x19, x13, #0, #8
+	ldr	w10, [x7, x10, LSL 2]
+	ldr	w12, [x7, x12, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x11, x14, #48, #8
+	eor	w10, w10, w12, ror 24
+	ubfx	x12, x14, #24, #8
+	eor	w10, w10, w17, ror 8
+	ubfx	x17, x13, #8, #8
+	eor	w10, w10, w19, ror 16
+	ubfx	x19, x13, #32, #8
+	bfi	x9, x10, #32, #32
+	ldr	w11, [x7, x11, LSL 2]
+	ldr	w12, [x7, x12, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x15, x14, #0, #8
+	eor	w11, w11, w12, ror 24
+	ubfx	x12, x13, #16, #8
+	eor	w11, w11, w17, ror 8
+	ubfx	x17, x14, #56, #8
+	eor	w10, w11, w19, ror 16
+	ubfx	x19, x13, #40, #8
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w12, [x7, x12, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	eor	w17, w17, w15, ror 24
+	ldp	x13, x14, [x25], #16
+	eor	w12, w12, w17, ror 24
+	eor	w12, w12, w19, ror 8
+	bfi	x10, x12, #32, #32
+	;   XOR in Key Schedule
+	eor	x9, x9, x13
+	eor	x10, x10, x14
+	subs	w24, w24, #2
+	bne	L_AES_XTS_encrypt_update_loop_nr
+	ubfx	x13, x9, #48, #8
+	ubfx	x16, x9, #24, #8
+	ubfx	x17, x10, #8, #8
+	ubfx	x19, x10, #32, #8
+	ldr	x11, [x7]
+	ldr	x11, [x7, #64]
+	ldr	x11, [x7, #128]
+	ldr	x11, [x7, #192]
+	ldr	x11, [x7, #256]
+	ldr	x11, [x7, #320]
+	ldr	x11, [x7, #384]
+	ldr	x11, [x7, #448]
+	ldr	x11, [x7, #512]
+	ldr	x11, [x7, #576]
+	ldr	x11, [x7, #640]
+	ldr	x11, [x7, #704]
+	ldr	x11, [x7, #768]
+	ldr	x11, [x7, #832]
+	ldr	x11, [x7, #896]
+	ldr	x11, [x7, #960]
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x14, x10, #16, #8
+	eor	w13, w13, w16, ror 24
+	ubfx	x16, x9, #56, #8
+	eor	w13, w13, w17, ror 8
+	ubfx	x17, x10, #40, #8
+	eor	w13, w13, w19, ror 16
+	ubfx	x19, x9, #0, #8
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x15, x10, #48, #8
+	eor	w14, w14, w16, ror 24
+	ubfx	x16, x10, #24, #8
+	eor	w14, w14, w17, ror 8
+	ubfx	x17, x9, #8, #8
+	eor	w14, w14, w19, ror 16
+	ubfx	x19, x9, #32, #8
+	bfi	x13, x14, #32, #32
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x11, x10, #0, #8
+	eor	w15, w15, w16, ror 24
+	ubfx	x16, x9, #16, #8
+	eor	w15, w15, w17, ror 8
+	ubfx	x17, x10, #56, #8
+	eor	w14, w15, w19, ror 16
+	ubfx	x19, x9, #40, #8
+	ldr	w11, [x7, x11, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	eor	w17, w17, w11, ror 24
+	ldp	x9, x10, [x25], #16
+	eor	w16, w16, w17, ror 24
+	eor	w16, w16, w19, ror 8
+	bfi	x14, x16, #32, #32
+	;   XOR in Key Schedule
+	eor	x13, x13, x9
+	eor	x14, x14, x10
+	ubfx	x9, x14, #32, #8
+	ubfx	x12, x14, #8, #8
+	ubfx	x17, x13, #48, #8
+	ubfx	x19, x13, #24, #8
+	lsl	w9, w9, #2
+	lsl	w12, w12, #2
+	lsl	w17, w17, #2
+	lsl	w19, w19, #2
+	ldr	x16, [x7]
+	ldr	x16, [x7, #64]
+	ldr	x16, [x7, #128]
+	ldr	x16, [x7, #192]
+	ldr	x16, [x7, #256]
+	ldr	x16, [x7, #320]
+	ldr	x16, [x7, #384]
+	ldr	x16, [x7, #448]
+	ldr	x16, [x7, #512]
+	ldr	x16, [x7, #576]
+	ldr	x16, [x7, #640]
+	ldr	x16, [x7, #704]
+	ldr	x16, [x7, #768]
+	ldr	x16, [x7, #832]
+	ldr	x16, [x7, #896]
+	ldr	x16, [x7, #960]
+	ldrb	w9, [x7, x9, LSL 0]
+	ldrb	w12, [x7, x12, LSL 0]
+	ldrb	w17, [x7, x17, LSL 0]
+	ldrb	w19, [x7, x19, LSL 0]
+	ubfx	x10, x13, #0, #8
+	eor	w9, w9, w12, lsl 8
+	ubfx	x12, x14, #40, #8
+	eor	w9, w9, w17, lsl 16
+	ubfx	x17, x14, #16, #8
+	eor	w9, w9, w19, lsl 24
+	ubfx	x19, x13, #56, #8
+	lsl	w10, w10, #2
+	lsl	w12, w12, #2
+	lsl	w17, w17, #2
+	lsl	w19, w19, #2
+	ldrb	w10, [x7, x10, LSL 0]
+	ldrb	w12, [x7, x12, LSL 0]
+	ldrb	w17, [x7, x17, LSL 0]
+	ldrb	w19, [x7, x19, LSL 0]
+	ubfx	x11, x13, #32, #8
+	eor	w10, w10, w12, lsl 8
+	ubfx	x12, x13, #8, #8
+	eor	w10, w10, w17, lsl 16
+	ubfx	x17, x14, #48, #8
+	eor	w10, w10, w19, lsl 24
+	ubfx	x19, x14, #24, #8
+	bfi	x9, x10, #32, #32
+	lsl	w11, w11, #2
+	lsl	w12, w12, #2
+	lsl	w17, w17, #2
+	lsl	w19, w19, #2
+	ldrb	w11, [x7, x11, LSL 0]
+	ldrb	w12, [x7, x12, LSL 0]
+	ldrb	w17, [x7, x17, LSL 0]
+	ldrb	w19, [x7, x19, LSL 0]
+	ubfx	x16, x14, #56, #8
+	eor	w11, w11, w12, lsl 8
+	ubfx	x12, x14, #0, #8
+	eor	w11, w11, w17, lsl 16
+	ubfx	x17, x13, #40, #8
+	eor	w10, w11, w19, lsl 24
+	ubfx	x19, x13, #16, #8
+	lsl	w16, w16, #2
+	lsl	w12, w12, #2
+	lsl	w17, w17, #2
+	lsl	w19, w19, #2
+	ldrb	w16, [x7, x16, LSL 0]
+	ldrb	w12, [x7, x12, LSL 0]
+	ldrb	w17, [x7, x17, LSL 0]
+	ldrb	w19, [x7, x19, LSL 0]
+	eor	w17, w17, w16, lsl 16
+	ldp	x13, x14, [x25]
+	eor	w12, w12, w17, lsl 8
+	eor	w12, w12, w19, lsl 16
+	bfi	x10, x12, #32, #32
+	;   XOR in Key Schedule
+	eor	x9, x9, x13
+	eor	x10, x10, x14
+	rev32	x9, x9
+	rev32	x10, x10
+	eor	x9, x9, x20
+	eor	x10, x10, x21
+	stp	x9, x10, [x1]
+	and	x17, x8, x21, asr 63
+	extr	x21, x21, x20, #63
+	eor	x20, x17, x20, lsl 1
+	sub	w2, w2, #16
+	add	x0, x0, #16
+	add	x1, x1, #16
+	cmp	w2, #16
+	bcs	L_AES_XTS_encrypt_update_loop_block
+	cbz	w2, L_AES_XTS_encrypt_update_done_data
+	mov	x25, x3
+	sub	x1, x1, #16
+	ldp	x9, x10, [x1], #16
+	stp	x9, x10, [x5]
+	mov	w13, w2
+L_AES_XTS_encrypt_update_start_byte
+	ldrb	w17, [x5]
+	ldrb	w19, [x0], #1
+	strb	w17, [x1], #1
+	strb	w19, [x5], #1
+	subs	w13, w13, #1
+	bgt	L_AES_XTS_encrypt_update_start_byte
+	sub	x1, x1, x2
+	sub	x5, x5, x2
+	sub	x1, x1, #16
+	ldp	x9, x10, [x5]
+	ldp	x13, x14, [x25], #16
+	eor	x9, x9, x20
+	eor	x10, x10, x21
+	rev32	x9, x9
+	rev32	x10, x10
+	; Round: 0 - XOR in key schedule
+	eor	x9, x9, x13
+	eor	x10, x10, x14
+	sub	w24, w6, #2
+L_AES_XTS_encrypt_update_loop_nr_partial
+	ubfx	x13, x9, #48, #8
+	ubfx	x16, x9, #24, #8
+	ubfx	x17, x10, #8, #8
+	ubfx	x19, x10, #32, #8
+	ldr	x11, [x7]
+	ldr	x11, [x7, #64]
+	ldr	x11, [x7, #128]
+	ldr	x11, [x7, #192]
+	ldr	x11, [x7, #256]
+	ldr	x11, [x7, #320]
+	ldr	x11, [x7, #384]
+	ldr	x11, [x7, #448]
+	ldr	x11, [x7, #512]
+	ldr	x11, [x7, #576]
+	ldr	x11, [x7, #640]
+	ldr	x11, [x7, #704]
+	ldr	x11, [x7, #768]
+	ldr	x11, [x7, #832]
+	ldr	x11, [x7, #896]
+	ldr	x11, [x7, #960]
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x14, x10, #16, #8
+	eor	w13, w13, w16, ror 24
+	ubfx	x16, x9, #56, #8
+	eor	w13, w13, w17, ror 8
+	ubfx	x17, x10, #40, #8
+	eor	w13, w13, w19, ror 16
+	ubfx	x19, x9, #0, #8
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x15, x10, #48, #8
+	eor	w14, w14, w16, ror 24
+	ubfx	x16, x10, #24, #8
+	eor	w14, w14, w17, ror 8
+	ubfx	x17, x9, #8, #8
+	eor	w14, w14, w19, ror 16
+	ubfx	x19, x9, #32, #8
+	bfi	x13, x14, #32, #32
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x11, x10, #0, #8
+	eor	w15, w15, w16, ror 24
+	ubfx	x16, x9, #16, #8
+	eor	w15, w15, w17, ror 8
+	ubfx	x17, x10, #56, #8
+	eor	w14, w15, w19, ror 16
+	ubfx	x19, x9, #40, #8
+	ldr	w11, [x7, x11, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	eor	w17, w17, w11, ror 24
+	ldp	x9, x10, [x25], #16
+	eor	w16, w16, w17, ror 24
+	eor	w16, w16, w19, ror 8
+	bfi	x14, x16, #32, #32
+	;   XOR in Key Schedule
+	eor	x13, x13, x9
+	eor	x14, x14, x10
+	ubfx	x9, x13, #48, #8
+	ubfx	x12, x13, #24, #8
+	ubfx	x17, x14, #8, #8
+	ubfx	x19, x14, #32, #8
+	ldr	x15, [x7]
+	ldr	x15, [x7, #64]
+	ldr	x15, [x7, #128]
+	ldr	x15, [x7, #192]
+	ldr	x15, [x7, #256]
+	ldr	x15, [x7, #320]
+	ldr	x15, [x7, #384]
+	ldr	x15, [x7, #448]
+	ldr	x15, [x7, #512]
+	ldr	x15, [x7, #576]
+	ldr	x15, [x7, #640]
+	ldr	x15, [x7, #704]
+	ldr	x15, [x7, #768]
+	ldr	x15, [x7, #832]
+	ldr	x15, [x7, #896]
+	ldr	x15, [x7, #960]
+	ldr	w9, [x7, x9, LSL 2]
+	ldr	w12, [x7, x12, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x10, x14, #16, #8
+	eor	w9, w9, w12, ror 24
+	ubfx	x12, x13, #56, #8
+	eor	w9, w9, w17, ror 8
+	ubfx	x17, x14, #40, #8
+	eor	w9, w9, w19, ror 16
+	ubfx	x19, x13, #0, #8
+	ldr	w10, [x7, x10, LSL 2]
+	ldr	w12, [x7, x12, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x11, x14, #48, #8
+	eor	w10, w10, w12, ror 24
+	ubfx	x12, x14, #24, #8
+	eor	w10, w10, w17, ror 8
+	ubfx	x17, x13, #8, #8
+	eor	w10, w10, w19, ror 16
+	ubfx	x19, x13, #32, #8
+	bfi	x9, x10, #32, #32
+	ldr	w11, [x7, x11, LSL 2]
+	ldr	w12, [x7, x12, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x15, x14, #0, #8
+	eor	w11, w11, w12, ror 24
+	ubfx	x12, x13, #16, #8
+	eor	w11, w11, w17, ror 8
+	ubfx	x17, x14, #56, #8
+	eor	w10, w11, w19, ror 16
+	ubfx	x19, x13, #40, #8
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w12, [x7, x12, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	eor	w17, w17, w15, ror 24
+	ldp	x13, x14, [x25], #16
+	eor	w12, w12, w17, ror 24
+	eor	w12, w12, w19, ror 8
+	bfi	x10, x12, #32, #32
+	;   XOR in Key Schedule
+	eor	x9, x9, x13
+	eor	x10, x10, x14
+	subs	w24, w24, #2
+	bne	L_AES_XTS_encrypt_update_loop_nr_partial
+	ubfx	x13, x9, #48, #8
+	ubfx	x16, x9, #24, #8
+	ubfx	x17, x10, #8, #8
+	ubfx	x19, x10, #32, #8
+	ldr	x11, [x7]
+	ldr	x11, [x7, #64]
+	ldr	x11, [x7, #128]
+	ldr	x11, [x7, #192]
+	ldr	x11, [x7, #256]
+	ldr	x11, [x7, #320]
+	ldr	x11, [x7, #384]
+	ldr	x11, [x7, #448]
+	ldr	x11, [x7, #512]
+	ldr	x11, [x7, #576]
+	ldr	x11, [x7, #640]
+	ldr	x11, [x7, #704]
+	ldr	x11, [x7, #768]
+	ldr	x11, [x7, #832]
+	ldr	x11, [x7, #896]
+	ldr	x11, [x7, #960]
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x14, x10, #16, #8
+	eor	w13, w13, w16, ror 24
+	ubfx	x16, x9, #56, #8
+	eor	w13, w13, w17, ror 8
+	ubfx	x17, x10, #40, #8
+	eor	w13, w13, w19, ror 16
+	ubfx	x19, x9, #0, #8
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x15, x10, #48, #8
+	eor	w14, w14, w16, ror 24
+	ubfx	x16, x10, #24, #8
+	eor	w14, w14, w17, ror 8
+	ubfx	x17, x9, #8, #8
+	eor	w14, w14, w19, ror 16
+	ubfx	x19, x9, #32, #8
+	bfi	x13, x14, #32, #32
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ubfx	x11, x10, #0, #8
+	eor	w15, w15, w16, ror 24
+	ubfx	x16, x9, #16, #8
+	eor	w15, w15, w17, ror 8
+	ubfx	x17, x10, #56, #8
+	eor	w14, w15, w19, ror 16
+	ubfx	x19, x9, #40, #8
+	ldr	w11, [x7, x11, LSL 2]
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	eor	w17, w17, w11, ror 24
+	ldp	x9, x10, [x25], #16
+	eor	w16, w16, w17, ror 24
+	eor	w16, w16, w19, ror 8
+	bfi	x14, x16, #32, #32
+	;   XOR in Key Schedule
+	eor	x13, x13, x9
+	eor	x14, x14, x10
+	ubfx	x9, x14, #32, #8
+	ubfx	x12, x14, #8, #8
+	ubfx	x17, x13, #48, #8
+	ubfx	x19, x13, #24, #8
+	lsl	w9, w9, #2
+	lsl	w12, w12, #2
+	lsl	w17, w17, #2
+	lsl	w19, w19, #2
+	ldr	x16, [x7]
+	ldr	x16, [x7, #64]
+	ldr	x16, [x7, #128]
+	ldr	x16, [x7, #192]
+	ldr	x16, [x7, #256]
+	ldr	x16, [x7, #320]
+	ldr	x16, [x7, #384]
+	ldr	x16, [x7, #448]
+	ldr	x16, [x7, #512]
+	ldr	x16, [x7, #576]
+	ldr	x16, [x7, #640]
+	ldr	x16, [x7, #704]
+	ldr	x16, [x7, #768]
+	ldr	x16, [x7, #832]
+	ldr	x16, [x7, #896]
+	ldr	x16, [x7, #960]
+	ldrb	w9, [x7, x9, LSL 0]
+	ldrb	w12, [x7, x12, LSL 0]
+	ldrb	w17, [x7, x17, LSL 0]
+	ldrb	w19, [x7, x19, LSL 0]
+	ubfx	x10, x13, #0, #8
+	eor	w9, w9, w12, lsl 8
+	ubfx	x12, x14, #40, #8
+	eor	w9, w9, w17, lsl 16
+	ubfx	x17, x14, #16, #8
+	eor	w9, w9, w19, lsl 24
+	ubfx	x19, x13, #56, #8
+	lsl	w10, w10, #2
+	lsl	w12, w12, #2
+	lsl	w17, w17, #2
+	lsl	w19, w19, #2
+	ldrb	w10, [x7, x10, LSL 0]
+	ldrb	w12, [x7, x12, LSL 0]
+	ldrb	w17, [x7, x17, LSL 0]
+	ldrb	w19, [x7, x19, LSL 0]
+	ubfx	x11, x13, #32, #8
+	eor	w10, w10, w12, lsl 8
+	ubfx	x12, x13, #8, #8
+	eor	w10, w10, w17, lsl 16
+	ubfx	x17, x14, #48, #8
+	eor	w10, w10, w19, lsl 24
+	ubfx	x19, x14, #24, #8
+	bfi	x9, x10, #32, #32
+	lsl	w11, w11, #2
+	lsl	w12, w12, #2
+	lsl	w17, w17, #2
+	lsl	w19, w19, #2
+	ldrb	w11, [x7, x11, LSL 0]
+	ldrb	w12, [x7, x12, LSL 0]
+	ldrb	w17, [x7, x17, LSL 0]
+	ldrb	w19, [x7, x19, LSL 0]
+	ubfx	x16, x14, #56, #8
+	eor	w11, w11, w12, lsl 8
+	ubfx	x12, x14, #0, #8
+	eor	w11, w11, w17, lsl 16
+	ubfx	x17, x13, #40, #8
+	eor	w10, w11, w19, lsl 24
+	ubfx	x19, x13, #16, #8
+	lsl	w16, w16, #2
+	lsl	w12, w12, #2
+	lsl	w17, w17, #2
+	lsl	w19, w19, #2
+	ldrb	w16, [x7, x16, LSL 0]
+	ldrb	w12, [x7, x12, LSL 0]
+	ldrb	w17, [x7, x17, LSL 0]
+	ldrb	w19, [x7, x19, LSL 0]
+	eor	w17, w17, w16, lsl 16
+	ldp	x13, x14, [x25]
+	eor	w12, w12, w17, lsl 8
+	eor	w12, w12, w19, lsl 16
+	bfi	x10, x12, #32, #32
+	;   XOR in Key Schedule
+	eor	x9, x9, x13
+	eor	x10, x10, x14
+	rev32	x9, x9
+	rev32	x10, x10
+	eor	x9, x9, x20
+	eor	x10, x10, x21
+	stp	x9, x10, [x1]
+L_AES_XTS_encrypt_update_done_data
+	stp	x20, x21, [x4]
+	ldp	x17, x19, [x29, #16]
+	ldp	x20, x21, [x29, #32]
+	ldp	x22, x23, [x29, #48]
+	ldp	x24, x25, [x29, #64]
+	ldp	x29, x30, [sp], #0x50
+	ret
+	ENDP
+	IF :DEF:HAVE_AES_DECRYPT
+	AREA	|.text|, CODE, READONLY
+	ALIGN	4
+	EXPORT	AES_XTS_decrypt_update
+AES_XTS_decrypt_update PROC
+	stp	x29, x30, [sp, #-96]!
+	add	x29, sp, #0
+	stp	x17, x19, [x29, #16]
+	stp	x20, x21, [x29, #32]
+	stp	x22, x23, [x29, #48]
+	stp	x24, x25, [x29, #64]
+	stp	x26, x27, [x29, #80]
+	adrp	x7, L_AES_ARM64_td
+	add	x7, x7, L_AES_ARM64_td
+	adrp	x8, L_AES_ARM64_td4
+	add	x8, x8, L_AES_ARM64_td4
+	adrp	x9, L_AES_ARM64_te
+	add	x9, x9, L_AES_ARM64_te
+	ands	w10, w2, #15
+	cset	w10, ne
+	sub	w2, w2, w10, lsl 4
+	mov	x10, #0x87
+	ldp	x22, x23, [x4]
+	cmp	w2, #16
+	bcc	L_AES_XTS_decrypt_update_start_partail
+L_AES_XTS_decrypt_update_loop_block
+	mov	x27, x3
+	ldp	x11, x12, [x0]
+	ldp	x15, x16, [x27], #16
+	eor	x11, x11, x22
+	eor	x12, x12, x23
+	rev32	x11, x11
+	rev32	x12, x12
+	; Round: 0 - XOR in key schedule
+	eor	x11, x11, x15
+	eor	x12, x12, x16
+	sub	w26, w6, #2
+L_AES_XTS_decrypt_update_loop_nr
+	ubfx	x15, x12, #48, #8
+	ubfx	x19, x11, #24, #8
+	ubfx	x20, x12, #8, #8
+	ubfx	x21, x11, #32, #8
+	ldr	x13, [x7]
+	ldr	x13, [x7, #64]
+	ldr	x13, [x7, #128]
+	ldr	x13, [x7, #192]
+	ldr	x13, [x7, #256]
+	ldr	x13, [x7, #320]
+	ldr	x13, [x7, #384]
+	ldr	x13, [x7, #448]
+	ldr	x13, [x7, #512]
+	ldr	x13, [x7, #576]
+	ldr	x13, [x7, #640]
+	ldr	x13, [x7, #704]
+	ldr	x13, [x7, #768]
+	ldr	x13, [x7, #832]
+	ldr	x13, [x7, #896]
+	ldr	x13, [x7, #960]
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x16, x11, #16, #8
+	eor	w15, w15, w19, ror 24
+	ubfx	x19, x11, #56, #8
+	eor	w15, w15, w20, ror 8
+	ubfx	x20, x12, #40, #8
+	eor	w15, w15, w21, ror 16
+	ubfx	x21, x12, #0, #8
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x17, x11, #48, #8
+	eor	w16, w16, w19, ror 24
+	ubfx	x19, x12, #24, #8
+	eor	w16, w16, w20, ror 8
+	ubfx	x20, x11, #8, #8
+	eor	w16, w16, w21, ror 16
+	ubfx	x21, x12, #32, #8
+	bfi	x15, x16, #32, #32
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x13, x11, #0, #8
+	eor	w17, w17, w19, ror 24
+	ubfx	x19, x12, #16, #8
+	eor	w17, w17, w20, ror 8
+	ubfx	x20, x12, #56, #8
+	eor	w16, w17, w21, ror 16
+	ubfx	x21, x11, #40, #8
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	eor	w20, w20, w13, ror 24
+	ldp	x11, x12, [x27], #16
+	eor	w19, w19, w21, ror 8
+	eor	w19, w19, w20, ror 24
+	bfi	x16, x19, #32, #32
+	;   XOR in Key Schedule
+	eor	x15, x15, x11
+	eor	x16, x16, x12
+	ubfx	x11, x16, #48, #8
+	ubfx	x14, x15, #24, #8
+	ubfx	x20, x16, #8, #8
+	ubfx	x21, x15, #32, #8
+	ldr	x17, [x7]
+	ldr	x17, [x7, #64]
+	ldr	x17, [x7, #128]
+	ldr	x17, [x7, #192]
+	ldr	x17, [x7, #256]
+	ldr	x17, [x7, #320]
+	ldr	x17, [x7, #384]
+	ldr	x17, [x7, #448]
+	ldr	x17, [x7, #512]
+	ldr	x17, [x7, #576]
+	ldr	x17, [x7, #640]
+	ldr	x17, [x7, #704]
+	ldr	x17, [x7, #768]
+	ldr	x17, [x7, #832]
+	ldr	x17, [x7, #896]
+	ldr	x17, [x7, #960]
+	ldr	w11, [x7, x11, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x12, x15, #16, #8
+	eor	w11, w11, w14, ror 24
+	ubfx	x14, x15, #56, #8
+	eor	w11, w11, w20, ror 8
+	ubfx	x20, x16, #40, #8
+	eor	w11, w11, w21, ror 16
+	ubfx	x21, x16, #0, #8
+	ldr	w12, [x7, x12, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x13, x15, #48, #8
+	eor	w12, w12, w14, ror 24
+	ubfx	x14, x16, #24, #8
+	eor	w12, w12, w20, ror 8
+	ubfx	x20, x15, #8, #8
+	eor	w12, w12, w21, ror 16
+	ubfx	x21, x16, #32, #8
+	bfi	x11, x12, #32, #32
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x17, x15, #0, #8
+	eor	w13, w13, w14, ror 24
+	ubfx	x14, x16, #16, #8
+	eor	w13, w13, w20, ror 8
+	ubfx	x20, x16, #56, #8
+	eor	w12, w13, w21, ror 16
+	ubfx	x21, x15, #40, #8
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	eor	w20, w20, w17, ror 24
+	ldp	x15, x16, [x27], #16
+	eor	w14, w14, w21, ror 8
+	eor	w14, w14, w20, ror 24
+	bfi	x12, x14, #32, #32
+	;   XOR in Key Schedule
+	eor	x11, x11, x15
+	eor	x12, x12, x16
+	subs	w26, w26, #2
+	bne	L_AES_XTS_decrypt_update_loop_nr
+	ubfx	x15, x12, #48, #8
+	ubfx	x19, x11, #24, #8
+	ubfx	x20, x12, #8, #8
+	ubfx	x21, x11, #32, #8
+	ldr	x13, [x7]
+	ldr	x13, [x7, #64]
+	ldr	x13, [x7, #128]
+	ldr	x13, [x7, #192]
+	ldr	x13, [x7, #256]
+	ldr	x13, [x7, #320]
+	ldr	x13, [x7, #384]
+	ldr	x13, [x7, #448]
+	ldr	x13, [x7, #512]
+	ldr	x13, [x7, #576]
+	ldr	x13, [x7, #640]
+	ldr	x13, [x7, #704]
+	ldr	x13, [x7, #768]
+	ldr	x13, [x7, #832]
+	ldr	x13, [x7, #896]
+	ldr	x13, [x7, #960]
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x16, x11, #16, #8
+	eor	w15, w15, w19, ror 24
+	ubfx	x19, x11, #56, #8
+	eor	w15, w15, w20, ror 8
+	ubfx	x20, x12, #40, #8
+	eor	w15, w15, w21, ror 16
+	ubfx	x21, x12, #0, #8
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x17, x11, #48, #8
+	eor	w16, w16, w19, ror 24
+	ubfx	x19, x12, #24, #8
+	eor	w16, w16, w20, ror 8
+	ubfx	x20, x11, #8, #8
+	eor	w16, w16, w21, ror 16
+	ubfx	x21, x12, #32, #8
+	bfi	x15, x16, #32, #32
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x13, x11, #0, #8
+	eor	w17, w17, w19, ror 24
+	ubfx	x19, x12, #16, #8
+	eor	w17, w17, w20, ror 8
+	ubfx	x20, x12, #56, #8
+	eor	w16, w17, w21, ror 16
+	ubfx	x21, x11, #40, #8
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	eor	w20, w20, w13, ror 24
+	ldp	x11, x12, [x27], #16
+	eor	w19, w19, w21, ror 8
+	eor	w19, w19, w20, ror 24
+	bfi	x16, x19, #32, #32
+	;   XOR in Key Schedule
+	eor	x15, x15, x11
+	eor	x16, x16, x12
+	ubfx	x11, x15, #32, #8
+	ubfx	x14, x16, #8, #8
+	ubfx	x20, x16, #48, #8
+	ubfx	x21, x15, #24, #8
+	ldr	x19, [x8]
+	ldr	x19, [x8, #64]
+	ldr	x19, [x8, #128]
+	ldr	x19, [x8, #192]
+	ldrb	w11, [x8, x11, LSL 0]
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	ubfx	x12, x16, #0, #8
+	eor	w11, w11, w14, lsl 8
+	ubfx	x14, x16, #40, #8
+	eor	w11, w11, w20, lsl 16
+	ubfx	x20, x15, #16, #8
+	eor	w11, w11, w21, lsl 24
+	ubfx	x21, x15, #56, #8
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	ldrb	w12, [x8, x12, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ubfx	x13, x16, #32, #8
+	eor	w12, w12, w14, lsl 8
+	ubfx	x14, x15, #8, #8
+	eor	w12, w12, w20, lsl 16
+	ubfx	x20, x15, #48, #8
+	eor	w12, w12, w21, lsl 24
+	ubfx	x21, x16, #24, #8
+	bfi	x11, x12, #32, #32
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	ldrb	w13, [x8, x13, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ubfx	x19, x16, #56, #8
+	eor	w13, w13, w14, lsl 8
+	ubfx	x14, x15, #0, #8
+	eor	w13, w13, w20, lsl 16
+	ubfx	x20, x15, #40, #8
+	eor	w12, w13, w21, lsl 24
+	ubfx	x21, x16, #16, #8
+	ldrb	w19, [x8, x19, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	eor	w20, w20, w19, lsl 16
+	ldp	x15, x16, [x27]
+	eor	w14, w14, w20, lsl 8
+	eor	w14, w14, w21, lsl 16
+	bfi	x12, x14, #32, #32
+	;   XOR in Key Schedule
+	eor	x11, x11, x15
+	eor	x12, x12, x16
+	rev32	x11, x11
+	rev32	x12, x12
+	eor	x11, x11, x22
+	eor	x12, x12, x23
+	stp	x11, x12, [x1]
+	and	x20, x10, x23, asr 63
+	extr	x23, x23, x22, #63
+	eor	x22, x20, x22, lsl 1
+	sub	w2, w2, #16
+	add	x0, x0, #16
+	add	x1, x1, #16
+	cmp	w2, #16
+	bcs	L_AES_XTS_decrypt_update_loop_block
+	cbz	w2, L_AES_XTS_decrypt_update_done_data
+L_AES_XTS_decrypt_update_start_partail
+	and	x20, x10, x23, asr 63
+	extr	x25, x23, x22, #63
+	eor	x24, x20, x22, lsl 1
+	mov	x27, x3
+	ldp	x11, x12, [x0], #16
+	ldp	x15, x16, [x27], #16
+	eor	x11, x11, x24
+	eor	x12, x12, x25
+	rev32	x11, x11
+	rev32	x12, x12
+	; Round: 0 - XOR in key schedule
+	eor	x11, x11, x15
+	eor	x12, x12, x16
+	sub	w26, w6, #2
+L_AES_XTS_decrypt_update_loop_nr_partial_1
+	ubfx	x15, x12, #48, #8
+	ubfx	x19, x11, #24, #8
+	ubfx	x20, x12, #8, #8
+	ubfx	x21, x11, #32, #8
+	ldr	x13, [x7]
+	ldr	x13, [x7, #64]
+	ldr	x13, [x7, #128]
+	ldr	x13, [x7, #192]
+	ldr	x13, [x7, #256]
+	ldr	x13, [x7, #320]
+	ldr	x13, [x7, #384]
+	ldr	x13, [x7, #448]
+	ldr	x13, [x7, #512]
+	ldr	x13, [x7, #576]
+	ldr	x13, [x7, #640]
+	ldr	x13, [x7, #704]
+	ldr	x13, [x7, #768]
+	ldr	x13, [x7, #832]
+	ldr	x13, [x7, #896]
+	ldr	x13, [x7, #960]
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x16, x11, #16, #8
+	eor	w15, w15, w19, ror 24
+	ubfx	x19, x11, #56, #8
+	eor	w15, w15, w20, ror 8
+	ubfx	x20, x12, #40, #8
+	eor	w15, w15, w21, ror 16
+	ubfx	x21, x12, #0, #8
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x17, x11, #48, #8
+	eor	w16, w16, w19, ror 24
+	ubfx	x19, x12, #24, #8
+	eor	w16, w16, w20, ror 8
+	ubfx	x20, x11, #8, #8
+	eor	w16, w16, w21, ror 16
+	ubfx	x21, x12, #32, #8
+	bfi	x15, x16, #32, #32
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x13, x11, #0, #8
+	eor	w17, w17, w19, ror 24
+	ubfx	x19, x12, #16, #8
+	eor	w17, w17, w20, ror 8
+	ubfx	x20, x12, #56, #8
+	eor	w16, w17, w21, ror 16
+	ubfx	x21, x11, #40, #8
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	eor	w20, w20, w13, ror 24
+	ldp	x11, x12, [x27], #16
+	eor	w19, w19, w21, ror 8
+	eor	w19, w19, w20, ror 24
+	bfi	x16, x19, #32, #32
+	;   XOR in Key Schedule
+	eor	x15, x15, x11
+	eor	x16, x16, x12
+	ubfx	x11, x16, #48, #8
+	ubfx	x14, x15, #24, #8
+	ubfx	x20, x16, #8, #8
+	ubfx	x21, x15, #32, #8
+	ldr	x17, [x7]
+	ldr	x17, [x7, #64]
+	ldr	x17, [x7, #128]
+	ldr	x17, [x7, #192]
+	ldr	x17, [x7, #256]
+	ldr	x17, [x7, #320]
+	ldr	x17, [x7, #384]
+	ldr	x17, [x7, #448]
+	ldr	x17, [x7, #512]
+	ldr	x17, [x7, #576]
+	ldr	x17, [x7, #640]
+	ldr	x17, [x7, #704]
+	ldr	x17, [x7, #768]
+	ldr	x17, [x7, #832]
+	ldr	x17, [x7, #896]
+	ldr	x17, [x7, #960]
+	ldr	w11, [x7, x11, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x12, x15, #16, #8
+	eor	w11, w11, w14, ror 24
+	ubfx	x14, x15, #56, #8
+	eor	w11, w11, w20, ror 8
+	ubfx	x20, x16, #40, #8
+	eor	w11, w11, w21, ror 16
+	ubfx	x21, x16, #0, #8
+	ldr	w12, [x7, x12, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x13, x15, #48, #8
+	eor	w12, w12, w14, ror 24
+	ubfx	x14, x16, #24, #8
+	eor	w12, w12, w20, ror 8
+	ubfx	x20, x15, #8, #8
+	eor	w12, w12, w21, ror 16
+	ubfx	x21, x16, #32, #8
+	bfi	x11, x12, #32, #32
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x17, x15, #0, #8
+	eor	w13, w13, w14, ror 24
+	ubfx	x14, x16, #16, #8
+	eor	w13, w13, w20, ror 8
+	ubfx	x20, x16, #56, #8
+	eor	w12, w13, w21, ror 16
+	ubfx	x21, x15, #40, #8
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	eor	w20, w20, w17, ror 24
+	ldp	x15, x16, [x27], #16
+	eor	w14, w14, w21, ror 8
+	eor	w14, w14, w20, ror 24
+	bfi	x12, x14, #32, #32
+	;   XOR in Key Schedule
+	eor	x11, x11, x15
+	eor	x12, x12, x16
+	subs	w26, w26, #2
+	bne	L_AES_XTS_decrypt_update_loop_nr_partial_1
+	ubfx	x15, x12, #48, #8
+	ubfx	x19, x11, #24, #8
+	ubfx	x20, x12, #8, #8
+	ubfx	x21, x11, #32, #8
+	ldr	x13, [x7]
+	ldr	x13, [x7, #64]
+	ldr	x13, [x7, #128]
+	ldr	x13, [x7, #192]
+	ldr	x13, [x7, #256]
+	ldr	x13, [x7, #320]
+	ldr	x13, [x7, #384]
+	ldr	x13, [x7, #448]
+	ldr	x13, [x7, #512]
+	ldr	x13, [x7, #576]
+	ldr	x13, [x7, #640]
+	ldr	x13, [x7, #704]
+	ldr	x13, [x7, #768]
+	ldr	x13, [x7, #832]
+	ldr	x13, [x7, #896]
+	ldr	x13, [x7, #960]
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x16, x11, #16, #8
+	eor	w15, w15, w19, ror 24
+	ubfx	x19, x11, #56, #8
+	eor	w15, w15, w20, ror 8
+	ubfx	x20, x12, #40, #8
+	eor	w15, w15, w21, ror 16
+	ubfx	x21, x12, #0, #8
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x17, x11, #48, #8
+	eor	w16, w16, w19, ror 24
+	ubfx	x19, x12, #24, #8
+	eor	w16, w16, w20, ror 8
+	ubfx	x20, x11, #8, #8
+	eor	w16, w16, w21, ror 16
+	ubfx	x21, x12, #32, #8
+	bfi	x15, x16, #32, #32
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x13, x11, #0, #8
+	eor	w17, w17, w19, ror 24
+	ubfx	x19, x12, #16, #8
+	eor	w17, w17, w20, ror 8
+	ubfx	x20, x12, #56, #8
+	eor	w16, w17, w21, ror 16
+	ubfx	x21, x11, #40, #8
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	eor	w20, w20, w13, ror 24
+	ldp	x11, x12, [x27], #16
+	eor	w19, w19, w21, ror 8
+	eor	w19, w19, w20, ror 24
+	bfi	x16, x19, #32, #32
+	;   XOR in Key Schedule
+	eor	x15, x15, x11
+	eor	x16, x16, x12
+	ubfx	x11, x15, #32, #8
+	ubfx	x14, x16, #8, #8
+	ubfx	x20, x16, #48, #8
+	ubfx	x21, x15, #24, #8
+	ldr	x19, [x8]
+	ldr	x19, [x8, #64]
+	ldr	x19, [x8, #128]
+	ldr	x19, [x8, #192]
+	ldrb	w11, [x8, x11, LSL 0]
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	ubfx	x12, x16, #0, #8
+	eor	w11, w11, w14, lsl 8
+	ubfx	x14, x16, #40, #8
+	eor	w11, w11, w20, lsl 16
+	ubfx	x20, x15, #16, #8
+	eor	w11, w11, w21, lsl 24
+	ubfx	x21, x15, #56, #8
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	ldrb	w12, [x8, x12, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ubfx	x13, x16, #32, #8
+	eor	w12, w12, w14, lsl 8
+	ubfx	x14, x15, #8, #8
+	eor	w12, w12, w20, lsl 16
+	ubfx	x20, x15, #48, #8
+	eor	w12, w12, w21, lsl 24
+	ubfx	x21, x16, #24, #8
+	bfi	x11, x12, #32, #32
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	ldrb	w13, [x8, x13, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ubfx	x19, x16, #56, #8
+	eor	w13, w13, w14, lsl 8
+	ubfx	x14, x15, #0, #8
+	eor	w13, w13, w20, lsl 16
+	ubfx	x20, x15, #40, #8
+	eor	w12, w13, w21, lsl 24
+	ubfx	x21, x16, #16, #8
+	ldrb	w19, [x8, x19, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	eor	w20, w20, w19, lsl 16
+	ldp	x15, x16, [x27]
+	eor	w14, w14, w20, lsl 8
+	eor	w14, w14, w21, lsl 16
+	bfi	x12, x14, #32, #32
+	;   XOR in Key Schedule
+	eor	x11, x11, x15
+	eor	x12, x12, x16
+	rev32	x11, x11
+	rev32	x12, x12
+	eor	x11, x11, x24
+	eor	x12, x12, x25
+	stp	x11, x12, [x5]
+	add	x1, x1, #16
+	mov	w15, w2
+L_AES_XTS_decrypt_update_start_byte
+	ldrb	w20, [x5]
+	ldrb	w21, [x0], #1
+	strb	w20, [x1], #1
+	strb	w21, [x5], #1
+	subs	w15, w15, #1
+	bgt	L_AES_XTS_decrypt_update_start_byte
+	sub	x1, x1, x2
+	sub	x5, x5, x2
+	sub	x1, x1, #16
+	mov	x27, x3
+	ldp	x11, x12, [x5]
+	ldp	x15, x16, [x27], #16
+	eor	x11, x11, x22
+	eor	x12, x12, x23
+	rev32	x11, x11
+	rev32	x12, x12
+	; Round: 0 - XOR in key schedule
+	eor	x11, x11, x15
+	eor	x12, x12, x16
+	sub	w26, w6, #2
+L_AES_XTS_decrypt_update_loop_nr_partial_2
+	ubfx	x15, x12, #48, #8
+	ubfx	x19, x11, #24, #8
+	ubfx	x20, x12, #8, #8
+	ubfx	x21, x11, #32, #8
+	ldr	x13, [x7]
+	ldr	x13, [x7, #64]
+	ldr	x13, [x7, #128]
+	ldr	x13, [x7, #192]
+	ldr	x13, [x7, #256]
+	ldr	x13, [x7, #320]
+	ldr	x13, [x7, #384]
+	ldr	x13, [x7, #448]
+	ldr	x13, [x7, #512]
+	ldr	x13, [x7, #576]
+	ldr	x13, [x7, #640]
+	ldr	x13, [x7, #704]
+	ldr	x13, [x7, #768]
+	ldr	x13, [x7, #832]
+	ldr	x13, [x7, #896]
+	ldr	x13, [x7, #960]
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x16, x11, #16, #8
+	eor	w15, w15, w19, ror 24
+	ubfx	x19, x11, #56, #8
+	eor	w15, w15, w20, ror 8
+	ubfx	x20, x12, #40, #8
+	eor	w15, w15, w21, ror 16
+	ubfx	x21, x12, #0, #8
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x17, x11, #48, #8
+	eor	w16, w16, w19, ror 24
+	ubfx	x19, x12, #24, #8
+	eor	w16, w16, w20, ror 8
+	ubfx	x20, x11, #8, #8
+	eor	w16, w16, w21, ror 16
+	ubfx	x21, x12, #32, #8
+	bfi	x15, x16, #32, #32
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x13, x11, #0, #8
+	eor	w17, w17, w19, ror 24
+	ubfx	x19, x12, #16, #8
+	eor	w17, w17, w20, ror 8
+	ubfx	x20, x12, #56, #8
+	eor	w16, w17, w21, ror 16
+	ubfx	x21, x11, #40, #8
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	eor	w20, w20, w13, ror 24
+	ldp	x11, x12, [x27], #16
+	eor	w19, w19, w21, ror 8
+	eor	w19, w19, w20, ror 24
+	bfi	x16, x19, #32, #32
+	;   XOR in Key Schedule
+	eor	x15, x15, x11
+	eor	x16, x16, x12
+	ubfx	x11, x16, #48, #8
+	ubfx	x14, x15, #24, #8
+	ubfx	x20, x16, #8, #8
+	ubfx	x21, x15, #32, #8
+	ldr	x17, [x7]
+	ldr	x17, [x7, #64]
+	ldr	x17, [x7, #128]
+	ldr	x17, [x7, #192]
+	ldr	x17, [x7, #256]
+	ldr	x17, [x7, #320]
+	ldr	x17, [x7, #384]
+	ldr	x17, [x7, #448]
+	ldr	x17, [x7, #512]
+	ldr	x17, [x7, #576]
+	ldr	x17, [x7, #640]
+	ldr	x17, [x7, #704]
+	ldr	x17, [x7, #768]
+	ldr	x17, [x7, #832]
+	ldr	x17, [x7, #896]
+	ldr	x17, [x7, #960]
+	ldr	w11, [x7, x11, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x12, x15, #16, #8
+	eor	w11, w11, w14, ror 24
+	ubfx	x14, x15, #56, #8
+	eor	w11, w11, w20, ror 8
+	ubfx	x20, x16, #40, #8
+	eor	w11, w11, w21, ror 16
+	ubfx	x21, x16, #0, #8
+	ldr	w12, [x7, x12, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x13, x15, #48, #8
+	eor	w12, w12, w14, ror 24
+	ubfx	x14, x16, #24, #8
+	eor	w12, w12, w20, ror 8
+	ubfx	x20, x15, #8, #8
+	eor	w12, w12, w21, ror 16
+	ubfx	x21, x16, #32, #8
+	bfi	x11, x12, #32, #32
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x17, x15, #0, #8
+	eor	w13, w13, w14, ror 24
+	ubfx	x14, x16, #16, #8
+	eor	w13, w13, w20, ror 8
+	ubfx	x20, x16, #56, #8
+	eor	w12, w13, w21, ror 16
+	ubfx	x21, x15, #40, #8
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w14, [x7, x14, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	eor	w20, w20, w17, ror 24
+	ldp	x15, x16, [x27], #16
+	eor	w14, w14, w21, ror 8
+	eor	w14, w14, w20, ror 24
+	bfi	x12, x14, #32, #32
+	;   XOR in Key Schedule
+	eor	x11, x11, x15
+	eor	x12, x12, x16
+	subs	w26, w26, #2
+	bne	L_AES_XTS_decrypt_update_loop_nr_partial_2
+	ubfx	x15, x12, #48, #8
+	ubfx	x19, x11, #24, #8
+	ubfx	x20, x12, #8, #8
+	ubfx	x21, x11, #32, #8
+	ldr	x13, [x7]
+	ldr	x13, [x7, #64]
+	ldr	x13, [x7, #128]
+	ldr	x13, [x7, #192]
+	ldr	x13, [x7, #256]
+	ldr	x13, [x7, #320]
+	ldr	x13, [x7, #384]
+	ldr	x13, [x7, #448]
+	ldr	x13, [x7, #512]
+	ldr	x13, [x7, #576]
+	ldr	x13, [x7, #640]
+	ldr	x13, [x7, #704]
+	ldr	x13, [x7, #768]
+	ldr	x13, [x7, #832]
+	ldr	x13, [x7, #896]
+	ldr	x13, [x7, #960]
+	ldr	w15, [x7, x15, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x16, x11, #16, #8
+	eor	w15, w15, w19, ror 24
+	ubfx	x19, x11, #56, #8
+	eor	w15, w15, w20, ror 8
+	ubfx	x20, x12, #40, #8
+	eor	w15, w15, w21, ror 16
+	ubfx	x21, x12, #0, #8
+	ldr	w16, [x7, x16, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x17, x11, #48, #8
+	eor	w16, w16, w19, ror 24
+	ubfx	x19, x12, #24, #8
+	eor	w16, w16, w20, ror 8
+	ubfx	x20, x11, #8, #8
+	eor	w16, w16, w21, ror 16
+	ubfx	x21, x12, #32, #8
+	bfi	x15, x16, #32, #32
+	ldr	w17, [x7, x17, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	ubfx	x13, x11, #0, #8
+	eor	w17, w17, w19, ror 24
+	ubfx	x19, x12, #16, #8
+	eor	w17, w17, w20, ror 8
+	ubfx	x20, x12, #56, #8
+	eor	w16, w17, w21, ror 16
+	ubfx	x21, x11, #40, #8
+	ldr	w13, [x7, x13, LSL 2]
+	ldr	w20, [x7, x20, LSL 2]
+	ldr	w19, [x7, x19, LSL 2]
+	ldr	w21, [x7, x21, LSL 2]
+	eor	w20, w20, w13, ror 24
+	ldp	x11, x12, [x27], #16
+	eor	w19, w19, w21, ror 8
+	eor	w19, w19, w20, ror 24
+	bfi	x16, x19, #32, #32
+	;   XOR in Key Schedule
+	eor	x15, x15, x11
+	eor	x16, x16, x12
+	ubfx	x11, x15, #32, #8
+	ubfx	x14, x16, #8, #8
+	ubfx	x20, x16, #48, #8
+	ubfx	x21, x15, #24, #8
+	ldr	x19, [x8]
+	ldr	x19, [x8, #64]
+	ldr	x19, [x8, #128]
+	ldr	x19, [x8, #192]
+	ldrb	w11, [x8, x11, LSL 0]
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	ubfx	x12, x16, #0, #8
+	eor	w11, w11, w14, lsl 8
+	ubfx	x14, x16, #40, #8
+	eor	w11, w11, w20, lsl 16
+	ubfx	x20, x15, #16, #8
+	eor	w11, w11, w21, lsl 24
+	ubfx	x21, x15, #56, #8
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	ldrb	w12, [x8, x12, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ubfx	x13, x16, #32, #8
+	eor	w12, w12, w14, lsl 8
+	ubfx	x14, x15, #8, #8
+	eor	w12, w12, w20, lsl 16
+	ubfx	x20, x15, #48, #8
+	eor	w12, w12, w21, lsl 24
+	ubfx	x21, x16, #24, #8
+	bfi	x11, x12, #32, #32
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	ldrb	w13, [x8, x13, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ubfx	x19, x16, #56, #8
+	eor	w13, w13, w14, lsl 8
+	ubfx	x14, x15, #0, #8
+	eor	w13, w13, w20, lsl 16
+	ubfx	x20, x15, #40, #8
+	eor	w12, w13, w21, lsl 24
+	ubfx	x21, x16, #16, #8
+	ldrb	w19, [x8, x19, LSL 0]
+	ldrb	w20, [x8, x20, LSL 0]
+	ldrb	w14, [x8, x14, LSL 0]
+	ldrb	w21, [x8, x21, LSL 0]
+	eor	w20, w20, w19, lsl 16
+	ldp	x15, x16, [x27]
+	eor	w14, w14, w20, lsl 8
+	eor	w14, w14, w21, lsl 16
+	bfi	x12, x14, #32, #32
+	;   XOR in Key Schedule
+	eor	x11, x11, x15
+	eor	x12, x12, x16
+	rev32	x11, x11
+	rev32	x12, x12
+	eor	x11, x11, x22
+	eor	x12, x12, x23
+	stp	x11, x12, [x1]
+L_AES_XTS_decrypt_update_done_data
+	stp	x22, x23, [x4]
+	ldp	x17, x19, [x29, #16]
+	ldp	x20, x21, [x29, #32]
+	ldp	x22, x23, [x29, #48]
+	ldp	x24, x25, [x29, #64]
+	ldp	x26, x27, [x29, #80]
+	ldp	x29, x30, [sp], #0x60
+	ret
+	ENDP
+	ENDIF
 	ENDIF
 	ENDIF
 	IF :DEF:WOLFSSL_AESGCM_SIV

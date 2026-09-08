@@ -874,7 +874,7 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
     /* Pick the widest available implementation at runtime.  Callers must
      * already be inside a VECTOR_REGISTERS_PUSH / SAVE_VECTOR_REGISTERS
      * region (all bulk AES-NI call sites are). */
-    #ifdef HAVE_AES_ECB
+#ifdef HAVE_AES_ECB
     static WC_INLINE void AesEcbEncryptBlocks(const unsigned char* in,
         unsigned char* out, word32 sz, const unsigned char* key, int nr)
     {
@@ -18614,10 +18614,29 @@ void AES_XTS_decrypt_update_avx512(const unsigned char *in, unsigned char *out, 
 
 #endif /* WOLFSSL_AESNI */
 
+/* Streaming XTS on aarch64 runs assembly only: crypto extension when the CPU
+ * has it, then NEON, then the table lane.  The NEON threshold matches the
+ * one-shot entry for the same direction. */
+#if defined(WOLFSSL_AESXTS_STREAM) && defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM)
+    #define WC_AES_XTS_STREAM_ARM64_ASM
+    #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        #define WC_AES_XTS_STREAM_AARCH64
+    #endif
+    #if defined(WOLFSSL_ARMASM_NO_NEON) && \
+        defined(WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP)
+        /* The crypto-extension lane is chosen at run time, so without NEON and
+         * without the table lane the dispatch below has no arm that always
+         * runs. */
+        #error "aarch64 AES-XTS streaming needs the NEON or the table lane"
+    #endif
+#endif
+
 #ifdef HAVE_AES_ECB
 #if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
-    defined(WOLFSSL_ARM32_AES_DISPATCH)) || defined(WOLFSSL_AESXTS_STREAM)
+    defined(WOLFSSL_ARM32_AES_DISPATCH)) || \
+    (defined(WOLFSSL_AESXTS_STREAM) && !defined(WC_AES_XTS_STREAM_ARM64_ASM))
 /* helper function for encrypting / decrypting full buffer at once */
 static WARN_UNUSED_RESULT int _AesXtsHelper(
     Aes* aes, byte* out, const byte* in, word32 sz, int dir)
@@ -18723,16 +18742,10 @@ static int AesXtsInitTweak_sw(XtsAes* xaes, byte* i) {
 
 #endif /* WOLFSSL_AESXTS_STREAM */
 
-/* The aarch64 crypto-extension lane of the streaming entry points.  Requiring
- * WOLFSSL_AESXTS_STREAM here means the else branch always has a _sw target. */
-#if defined(WOLFSSL_AESXTS_STREAM) && defined(__aarch64__) && \
-    defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-    #define WC_AES_XTS_STREAM_AARCH64
-#endif
-
 #if !defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
-    defined(WOLFSSL_ARM32_AES_DISPATCH) || defined(WOLFSSL_AESXTS_STREAM)
+    defined(WOLFSSL_ARM32_AES_DISPATCH) || \
+    (defined(WOLFSSL_AESXTS_STREAM) && !defined(WC_AES_XTS_STREAM_ARM64_ASM))
 /* Block-streaming AES-XTS.
  *
  * Supply block-aligned input data with successive calls.  Final call need not
@@ -19112,10 +19125,10 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
 {
     int ret;
 
-#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_ARM64_ASM)
     Aes *aes;
 #endif
-#ifdef WC_AES_XTS_STREAM_AARCH64
+#ifdef WC_AES_XTS_STREAM_ARM64_ASM
     /* One keyed XtsAes can drive several streams at once, so the stealing
      * scratch stays on the stack rather than in the shared aes->tmp. */
     ALIGN16 byte xts_tmp[WC_AES_BLOCK_SIZE];
@@ -19125,7 +19138,7 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_ARM64_ASM)
     /* Encryption always uses xaes->aes, both key layouts. */
     aes = &xaes->aes;
 #endif
@@ -19206,20 +19219,46 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         }
         else
 #endif /* WOLFSSL_AESNI */
-#ifdef WC_AES_XTS_STREAM_AARCH64
-        if (aes->use_aes_hw_crypto) {
+#ifdef WC_AES_XTS_STREAM_ARM64_ASM
+        {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
-            AES_XTS_encrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
-                stream->tweak_block, xts_tmp, (int)aes->rounds);
+#ifdef WC_AES_XTS_STREAM_AARCH64
+            if (aes->use_aes_hw_crypto) {
+                AES_XTS_encrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
+                    stream->tweak_block, xts_tmp, (int)aes->rounds);
+                ret = 0;
+            }
+            else
+#endif
+#ifndef WOLFSSL_ARMASM_NO_NEON
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+            /* same threshold the one-shot encrypt uses */
+            if (sz >= 32)
+#endif
+            {
+                AES_XTS_encrypt_update_NEON(in, out, sz, (byte*)aes->key,
+                    stream->tweak_block, xts_tmp, (int)aes->rounds);
+                ret = 0;
+            }
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+            else
+#endif
+#endif
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+            {
+                AES_XTS_encrypt_update(in, out, sz, (byte*)aes->key,
+                    stream->tweak_block, xts_tmp, (int)aes->rounds);
+                ret = 0;
+            }
+#endif
             ForceZero(xts_tmp, sizeof(xts_tmp));
-            ret = 0;
             RESTORE_VECTOR_REGISTERS();
         }
-        else
-#endif
+#else
         {
             ret = AesXtsEncryptUpdate_sw(xaes, out, in, sz, stream->tweak_block);
         }
+#endif
     }
 
     return ret;
@@ -19299,7 +19338,8 @@ static int AesXtsDecrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
 #if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
-    defined(WOLFSSL_ARM32_AES_DISPATCH)) || defined(WOLFSSL_AESXTS_STREAM)
+    defined(WOLFSSL_ARM32_AES_DISPATCH)) || \
+    (defined(WOLFSSL_AESXTS_STREAM) && !defined(WC_AES_XTS_STREAM_ARM64_ASM))
 /* Block-streaming AES-XTS.
  *
  * Same process as encryption but use decrypt key.
@@ -19720,10 +19760,10 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
                            struct XtsAesStreamData *stream)
 {
     int ret;
-#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_ARM64_ASM)
     Aes *aes;
 #endif
-#ifdef WC_AES_XTS_STREAM_AARCH64
+#ifdef WC_AES_XTS_STREAM_ARM64_ASM
     /* One keyed XtsAes can drive several streams at once, so the stealing
      * scratch stays on the stack rather than in the shared aes->tmp. */
     ALIGN16 byte xts_tmp[WC_AES_BLOCK_SIZE];
@@ -19733,7 +19773,7 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_AARCH64)
+#if defined(WOLFSSL_AESNI) || defined(WC_AES_XTS_STREAM_ARM64_ASM)
 #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
     aes = &xaes->aes_decrypt;
 #else
@@ -19807,23 +19847,49 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         }
         else
 #endif /* WOLFSSL_AESNI */
-#ifdef WC_AES_XTS_STREAM_AARCH64
-        /* Use the resolved decrypt schedule: xaes->aes_decrypt under
-         * simultaneous keys, otherwise xaes->aes holds the decrypt schedule. */
-        if (aes->use_aes_hw_crypto) {
+/* Uses the resolved decrypt schedule: xaes->aes_decrypt under simultaneous
+ * keys, otherwise xaes->aes holds the decrypt schedule. */
+#ifdef WC_AES_XTS_STREAM_ARM64_ASM
+        {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
-            AES_XTS_decrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
-                stream->tweak_block, xts_tmp, (int)aes->rounds);
+#ifdef WC_AES_XTS_STREAM_AARCH64
+            if (aes->use_aes_hw_crypto) {
+                AES_XTS_decrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
+                    stream->tweak_block, xts_tmp, (int)aes->rounds);
+                ret = 0;
+            }
+            else
+#endif
+#ifndef WOLFSSL_ARMASM_NO_NEON
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+            /* same threshold the one-shot decrypt uses */
+            if (sz >= 64)
+#endif
+            {
+                AES_XTS_decrypt_update_NEON(in, out, sz, (byte*)aes->key,
+                    stream->tweak_block, xts_tmp, (int)aes->rounds);
+                ret = 0;
+            }
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+            else
+#endif
+#endif
+#ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
+            {
+                AES_XTS_decrypt_update(in, out, sz, (byte*)aes->key,
+                    stream->tweak_block, xts_tmp, (int)aes->rounds);
+                ret = 0;
+            }
+#endif
             ForceZero(xts_tmp, sizeof(xts_tmp));
-            ret = 0;
             RESTORE_VECTOR_REGISTERS();
         }
-        else
-#endif
+#else
         {
             ret = AesXtsDecryptUpdate_sw(xaes, out, in, sz,
                                          stream->tweak_block);
         }
+#endif
     }
 
     return ret;

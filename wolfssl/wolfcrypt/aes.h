@@ -1084,6 +1084,12 @@ WOLFSSL_LOCAL void AES_XTS_encrypt(const byte* in, byte* out, word32 sz,
     const byte* i, byte* key, byte* key2, byte* tmp, int nr);
 WOLFSSL_LOCAL void AES_XTS_decrypt(const byte* in, byte* out, word32 sz,
     const byte* i, byte* key, byte* key2, byte* tmp, int nr);
+#ifdef WOLFSSL_AESXTS_STREAM
+WOLFSSL_LOCAL void AES_XTS_encrypt_update(const byte* in, byte* out, word32 sz,
+    byte* key, byte* tweak, byte* tmp, int nr);
+WOLFSSL_LOCAL void AES_XTS_decrypt_update(const byte* in, byte* out, word32 sz,
+    byte* key, byte* tweak, byte* tmp, int nr);
+#endif
 #endif
 #endif /* __aarch64__ || WOLFSSL_ARMASM_NO_HW_CRYPTO ||
         * !WOLFSSL_ARMASM_NO_BASE_IMPL */
@@ -1123,6 +1129,12 @@ WOLFSSL_LOCAL void AES_XTS_encrypt_NEON(const byte* in, byte* out, word32 sz,
     const byte* i, byte* key, byte* key2, byte* tmp, int nr);
 WOLFSSL_LOCAL void AES_XTS_decrypt_NEON(const byte* in, byte* out, word32 sz,
     const byte* i, byte* key, byte* key2, byte* tmp, int nr);
+#ifdef WOLFSSL_AESXTS_STREAM
+WOLFSSL_LOCAL void AES_XTS_encrypt_update_NEON(const byte* in, byte* out,
+    word32 sz, byte* key, byte* tweak, byte* tmp, int nr);
+WOLFSSL_LOCAL void AES_XTS_decrypt_update_NEON(const byte* in, byte* out,
+    word32 sz, byte* key, byte* tweak, byte* tmp, int nr);
+#endif
 #endif /* WOLFSSL_AES_XTS */
 
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
