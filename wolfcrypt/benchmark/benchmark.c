@@ -6932,6 +6932,14 @@ void bench_aesxts(void)
     WC_DECLARE_VAR(aes, XtsAes, 1, HEAP_HINT);
     double start;
     int    i, count, ret;
+#ifdef WOLFSSL_AESXTS_STREAM
+    /* Chunk the same buffer the one-shot benchmark uses, so the two numbers
+     * are directly comparable.  1 KiB is 64 blocks, enough to reach the
+     * multi-block loops in the assembly rather than only its tail. */
+    #define BENCH_XTS_CHUNK 1024
+    struct XtsAesStreamData stream;
+    word32 off;
+#endif
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     static const unsigned char k1[] = {
@@ -6979,6 +6987,51 @@ void bench_aesxts(void)
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    if ((word32)bench_size >= (word32)WC_AES_BLOCK_SIZE) {
+        RESET_MULTI_VALUE_STATS_VARS();
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                if ((ret = wc_AesXtsEncryptInit(aes, i1, sizeof(i1),
+                                &stream)) != 0) {
+                    printf("wc_AesXtsEncryptInit failed, ret = %d\n", ret);
+                    goto exit;
+                }
+                for (off = 0;
+                     off + BENCH_XTS_CHUNK < (word32)bench_size;
+                     off += BENCH_XTS_CHUNK) {
+                    if ((ret = wc_AesXtsEncryptUpdate(aes, bench_cipher + off,
+                                    bench_plain + off, BENCH_XTS_CHUNK,
+                                    &stream)) != 0) {
+                        printf("wc_AesXtsEncryptUpdate failed, ret = %d\n",
+                               ret);
+                        goto exit;
+                    }
+                }
+                if ((ret = wc_AesXtsEncryptFinal(aes, bench_cipher + off,
+                                bench_plain + off,
+                                (word32)bench_size - off, &stream)) != 0) {
+                    printf("wc_AesXtsEncryptFinal failed, ret = %d\n", ret);
+                    goto exit;
+                }
+                RECORD_MULTI_VALUE_STATS();
+            }
+            count += i;
+        } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+               || runs < minimum_runs
+#endif
+               );
+
+        bench_stats_sym_finish("AES-XTS-stream-enc", 0, count, bench_size,
+                               start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    }
+#endif /* WOLFSSL_AESXTS_STREAM */
     wc_AesXtsFree(aes);
 
     /* decryption benchmark */
@@ -7013,6 +7066,51 @@ void bench_aesxts(void)
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    if ((word32)bench_size >= (word32)WC_AES_BLOCK_SIZE) {
+        RESET_MULTI_VALUE_STATS_VARS();
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                if ((ret = wc_AesXtsDecryptInit(aes, i1, sizeof(i1),
+                                &stream)) != 0) {
+                    printf("wc_AesXtsDecryptInit failed, ret = %d\n", ret);
+                    goto exit;
+                }
+                for (off = 0;
+                     off + BENCH_XTS_CHUNK < (word32)bench_size;
+                     off += BENCH_XTS_CHUNK) {
+                    if ((ret = wc_AesXtsDecryptUpdate(aes, bench_plain + off,
+                                    bench_cipher + off, BENCH_XTS_CHUNK,
+                                    &stream)) != 0) {
+                        printf("wc_AesXtsDecryptUpdate failed, ret = %d\n",
+                               ret);
+                        goto exit;
+                    }
+                }
+                if ((ret = wc_AesXtsDecryptFinal(aes, bench_plain + off,
+                                bench_cipher + off,
+                                (word32)bench_size - off, &stream)) != 0) {
+                    printf("wc_AesXtsDecryptFinal failed, ret = %d\n", ret);
+                    goto exit;
+                }
+                RECORD_MULTI_VALUE_STATS();
+            }
+            count += i;
+        } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+               || runs < minimum_runs
+#endif
+               );
+
+        bench_stats_sym_finish("AES-XTS-stream-dec", 0, count, bench_size,
+                               start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+        bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    }
+#endif /* WOLFSSL_AESXTS_STREAM */
 #endif
 
 exit:
