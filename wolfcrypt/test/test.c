@@ -17380,6 +17380,41 @@ static wc_test_ret_t aes_xts_large_test_common(XtsAes *aes,
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif /* HAVE_AES_DECRYPT */
+
+        /* The per-stream byte count is 32 bits wide.  Whatever it does at the
+         * top of its range, it must never corrupt the data or run backwards:
+         * the tweak is 128-bit and advanced by the cipher, not by this count.
+         * A stream primed near the limit must either be refused outright or
+         * still agree with the one-shot. */
+        {
+            word32 before;
+
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, k1Sz, AES_ENCRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_AesXtsEncrypt(aes, ref, plain, WC_AES_BLOCK_SIZE * 2,
+                i1, i1Sz);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsEncryptInit(aes, i1, i1Sz, &stream);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            /* a whole number of blocks, so the post-finalize guard is clear */
+            stream.bytes_crypted_with_this_tweak = 0xFFFFFFF0U;
+            before = stream.bytes_crypted_with_this_tweak;
+            XMEMSET(buf, 0, WC_AES_BLOCK_SIZE * 2);
+            ret = wc_AesXtsEncryptUpdate(aes, buf, plain,
+                WC_AES_BLOCK_SIZE * 2, &stream);
+            if (ret == 0) {
+                if (XMEMCMP(buf, ref, WC_AES_BLOCK_SIZE * 2) != 0)
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                if (stream.bytes_crypted_with_this_tweak < before)
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+            }
+            else if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
         ret = 0;
 #undef XTS_STREAM_SZ
     }
