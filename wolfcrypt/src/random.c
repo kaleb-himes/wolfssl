@@ -2433,6 +2433,21 @@ int wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
 }
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+/* A failed seed source reports DRBG_FAILURE, except an SP 800-90B RCT or APT
+ * failure, which keeps its own code. */
+static int ReseedSourceFailure(int ret)
+{
+#if FIPS_VERSION3_GE(7,0,0)
+    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+        return ret;
+    }
+#else
+    (void)ret;
+#endif
+    return DRBG_FAILURE;
+}
+
 static int PollAndReSeed(WC_RNG* rng)
 {
     int ret   = WC_NO_ERR_TRACE(DRBG_NEED_RESEED);
@@ -2464,7 +2479,7 @@ static int PollAndReSeed(WC_RNG* rng)
                     WOLFSSL_DEBUG_PRINTF("ERROR: seedCb() in PollAndReSeed() "
                                          "failed with err %d", ret);
     #endif
-                    ret = DRBG_FAILURE;
+                    ret = ReseedSourceFailure(ret);
                 }
             }
         #else
@@ -2476,7 +2491,7 @@ static int PollAndReSeed(WC_RNG* rng)
                     "ERROR: wc_GenerateSeed() in PollAndReSeed() failed with "
                     "err %d", ret);
     #endif
-                ret = DRBG_FAILURE;
+                ret = ReseedSourceFailure(ret);
             }
         #endif
         }
@@ -2527,6 +2542,28 @@ static int PollAndReSeed(WC_RNG* rng)
     }
 
     return ret;
+}
+
+/* Map a failed generate or reseed to the return code and rng->status.
+ * A failed SP 800-90A health test returns DRBG_CONT_FIPS_E. */
+static int RngGenerateFailure(WC_RNG* rng, int ret)
+{
+    if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
+        rng->status = DRBG_CONT_FAILED;
+        return DRBG_CONT_FIPS_E;
+    }
+
+    rng->status = DRBG_FAILED;
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-90B RCT and APT failures keep their own code. */
+    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+        return ret;
+    }
+#endif
+
+    return RNG_FAILURE_E;
 }
 #endif
 
@@ -2602,8 +2639,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         rng->pid = getpid();
         ret = PollAndReSeed(rng);
         if (ret != DRBG_SUCCESS) {
-            rng->status = DRBG_FAILED;
-            return RNG_FAILURE_E;
+            return RngGenerateFailure(rng, ret);
         }
     }
 #endif
@@ -2642,13 +2678,8 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (ret == DRBG_SUCCESS) {
         ret = 0;
     }
-    else if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
-        ret = DRBG_CONT_FIPS_E;
-        rng->status = DRBG_CONT_FAILED;
-    }
     else {
-        ret = RNG_FAILURE_E;
-        rng->status = DRBG_FAILED;
+        ret = RngGenerateFailure(rng, ret);
     }
 #else
 
