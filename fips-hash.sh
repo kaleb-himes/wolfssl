@@ -8,8 +8,8 @@
 # integrity hash during the build process on the linked binary. This version is
 # suitable for statically linked builds.
 
-# An --enable-linuxkm build has no testwolfcrypt at all; linuxkm/Makefile runs
-# its own hash update. This script is for userspace builds.
+# An --enable-linuxkm build has no testwolfcrypt at all; linuxkm/Makefile does
+# its own hash update.
 if test ! -x ./wolfcrypt/test/testwolfcrypt
 then
     echo "fips-hash: wolfCrypt test missing"
@@ -22,44 +22,56 @@ then
     exit 1
 fi
 
-# testwolfcrypt is a libtool wrapper script. With .libs/testwolfcrypt missing it
-# prints its own error to stderr and exits 1, so stdout alone says whether the
-# test really ran. Leave stderr on the terminal where the build log gets it.
+# testwolfcrypt is a libtool wrapper and reports a missing .libs binary on
+# stderr, so judge the run by stdout and leave stderr on the terminal.
 TESTOUT=$(./wolfcrypt/test/testwolfcrypt)
 TESTRC=$?
 
-# The hash line is printed only when the in-core check fails, which is what this
-# script is for. Take it exactly as long as reported: the digest is SHA-256 (64
-# hex) up to FIPS v6.0.0 and SHA-512 (128 hex) from v7.0.0 on.
+# main() in wolfcrypt/test/test.c returns only 0 or 1, so any other status is a
+# death before main() returned and nothing it printed can be trusted.
+if test "$TESTRC" -ne 0 && test "$TESTRC" -ne 1
+then
+    echo "fips-hash: testwolfcrypt exited $TESTRC; fips_test.c NOT updated." >&2
+    printf '%s\n' "$TESTOUT" >&2
+    exit 1
+fi
+
+# The FIPS error callback prints "hash = " for any error, not just the in-core
+# one; the in-core check runs first, so the first match is the in-core hash.
 NEWHASH=$(printf '%s\n' "$TESTOUT" | \
           sed -n 's/^hash = \([0-9A-Fa-f][0-9A-Fa-f]*\).*$/\1/p' | head -1)
 
-if test -n "$NEWHASH"
+if test -z "$NEWHASH"
 then
-    # main() in wolfcrypt/test/test.c returns 0 or 1; anything else means it
-    # died before main() returned, so the hash it printed is not trustworthy.
-    if test "$TESTRC" -ne 0 && test "$TESTRC" -ne 1
-    then
-        echo "fips-hash: testwolfcrypt exited $TESTRC, so it died before" >&2
-        echo "fips-hash: main() returned; fips_test.c NOT updated." >&2
-        exit 1
-    fi
-    cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
-    sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak \
-        >wolfcrypt/src/fips_test.c
+    # The banner means the run got far enough to have reported a hash had the
+    # in-core check failed, so no hash means the value in source is correct.
+    case "$TESTOUT" in
+        *"wolfSSL version"*)
+            echo "fips-hash: in-core hash already matches; fips_test.c unchanged."
+            exit 0
+            ;;
+    esac
+    echo "fips-hash: testwolfcrypt printed no banner and no hash," >&2
+    echo "fips-hash: so fips_test.c was NOT updated. Its output:" >&2
+    printf '%s\n' "$TESTOUT" >&2
+    exit 1
+fi
+
+if ! cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
+then
+    echo "fips-hash: cannot back up fips_test.c; NOT updated." >&2
+    exit 1
+fi
+
+# The redirect truncates fips_test.c before sed runs, and the substitution is a
+# silent no-op if the literal moved, so confirm the hash landed.
+if sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak \
+       >wolfcrypt/src/fips_test.c &&
+   grep -q "^\"${NEWHASH}\";" wolfcrypt/src/fips_test.c
+then
     exit 0
 fi
 
-# No hash line. The banner means it ran and the hash already matched; nothing at
-# all means it never ran, and keeping the stale hash would make every FIPS call
-# return IN_CORE_FIPS_E (-203).
-case "$TESTOUT" in
-    *"wolfSSL version"*)
-        echo "fips-hash: in-core hash already matches; fips_test.c unchanged."
-        ;;
-    *)
-        echo "fips-hash: testwolfcrypt did not run; fips_test.c NOT updated." >&2
-        echo "fips-hash: the module would fail with -203." >&2
-        exit 1
-        ;;
-esac
+cp wolfcrypt/src/fips_test.c.bak wolfcrypt/src/fips_test.c
+echo "fips-hash: could not write the new hash into fips_test.c." >&2
+exit 1

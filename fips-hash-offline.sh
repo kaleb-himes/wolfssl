@@ -49,6 +49,7 @@
 #   default binary: wolfcrypt/test/testwolfcrypt
 
 set -euo pipefail
+export LC_ALL=C
 
 BIN="${1:-wolfcrypt/test/testwolfcrypt}"
 
@@ -115,20 +116,26 @@ keyaddr=$((0x$KEY_H))
 [ "$last"  -gt "$first"   ] || die "wolfCrypt_FIPS_last <= wolfCrypt_FIPS_first"
 [ "$roend" -gt "$rostart" ] || die "wolfCrypt_FIPS_ro_end <= wolfCrypt_FIPS_ro_start"
 
-# Select the digest from the size of verifyCore[] (= digest_bytes*2 + 1).
+# Both arrays are ASCII hex plus a NUL, so an even size means the symbol is not
+# the shape this script expects and the halving below would round it into range.
+[ $(( VCSZ  % 2 )) -eq 1 ] || die "verifyCore size ($VCSZ) is not hex plus NUL"
+[ $(( KEYSZ % 2 )) -eq 1 ] || die "coreKey size ($KEYSZ) is not hex plus NUL"
 digest_bytes=$(( (VCSZ - 1) / 2 ))
-case "$digest_bytes" in
-    32) ALG=sha256 ;;
-    48) ALG=sha384 ;;
-    64) ALG=sha512 ;;
-    *)  die "unexpected verifyCore size ($VCSZ); cannot determine digest" ;;
+key_bytes=$(( (KEYSZ - 1) / 2 ))
+
+# Digest length alone does not name the algorithm, so pin the pairings the
+# module actually ships rather than inferring from verifyCore[] on its own.
+case "$digest_bytes:$key_bytes" in
+    32:32)  ALG=sha256 ;;
+    48:48)  ALG=sha384 ;;
+    64:128) ALG=sha512 ;;
+    *) die "unrecognized digest/key pairing (${digest_bytes}/${key_bytes} bytes)" ;;
 esac
 
 # Read the HMAC key (coreKey) as ASCII hex straight out of the binary.
 keyoff=$(vaddr_to_off "$keyaddr") || die "cannot map coreKey address to file offset"
 KEYHEX=$(extract "$keyoff" $((KEYSZ - 1)))
-# coreKey is sized independently of the digest: v7 pairs a 128-byte key with a
-# 64-byte SHA-512 digest.
+# A short read here means the symbol ran past the end of the mapped region.
 [ "${#KEYHEX}" -eq $((KEYSZ - 1)) ] || die "coreKey length mismatch in binary"
 case "$KEYHEX" in *[!0-9A-Fa-f]*) die "coreKey is not ASCII hex" ;; esac
 
