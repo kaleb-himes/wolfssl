@@ -27,7 +27,8 @@
 # This reproduces, at build time and against the final ELF image, exactly what
 # DoInCoreCheck() in wolfcrypt/src/fips_test.c computes at run time:
 #
-#   HMAC-SHA256/384/512( coreKey,   (digest chosen from verifyCore[] size)
+#   HMAC-SHA256/384/512( coreKey,   (digest chosen from the verifyCore[]
+#                                  and coreKey[] size pairing)
 #                .text  bytes in [wolfCrypt_FIPS_first, wolfCrypt_FIPS_last)
 #                ||
 #                .rodata bytes in [wolfCrypt_FIPS_ro_start, wolfCrypt_FIPS_ro_end)

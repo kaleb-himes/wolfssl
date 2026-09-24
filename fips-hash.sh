@@ -1,5 +1,8 @@
 #!/bin/sh
 
+LC_ALL=C
+export LC_ALL
+
 # This script executes the testwolfcrypt binary to report its calculated FIPS
 # integrity hash, then it modifies the fips_test.c source code to update the
 # expected integrity hash in source.
@@ -36,18 +39,30 @@ then
     exit 1
 fi
 
-# The FIPS error callback prints "hash = " for any error, not just the in-core
-# one; the in-core check runs first, so the first match is the in-core hash.
+# myFipsCb in wolfcrypt/test/test.c prints at most one message per process, so
+# there is only ever one "hash = " line to take.
 NEWHASH=$(printf '%s\n' "$TESTOUT" | \
           sed -n 's/^hash = \([0-9A-Fa-f][0-9A-Fa-f]*\).*$/\1/p' | head -1)
 
 if test -z "$NEWHASH"
 then
-    # The banner means the run got far enough to have reported a hash had the
-    # in-core check failed, so no hash means the value in source is correct.
+    # Only a FIPS build that ran clean shows the value in source is right. The
+    # plain banner is printed by every build, FIPS or not, so it proves nothing.
     case "$TESTOUT" in
+        *"FIPS module version in use"*)
+            if test "$TESTRC" -eq 0
+            then
+                echo "fips-hash: in-core hash already matches; fips_test.c unchanged."
+                exit 0
+            fi
+            echo "fips-hash: no hash reported, but testwolfcrypt exited $TESTRC." >&2
+            echo "fips-hash: fips_test.c unchanged. Its output:" >&2
+            printf '%s\n' "$TESTOUT" >&2
+            exit 0
+            ;;
         *"wolfSSL version"*)
-            echo "fips-hash: in-core hash already matches; fips_test.c unchanged."
+            echo "fips-hash: no hash and no FIPS module banner; fips_test.c" >&2
+            echo "fips-hash: unchanged. Was this configured with --enable-fips?" >&2
             exit 0
             ;;
     esac
@@ -72,6 +87,10 @@ then
     exit 0
 fi
 
-cp wolfcrypt/src/fips_test.c.bak wolfcrypt/src/fips_test.c
 echo "fips-hash: could not write the new hash into fips_test.c." >&2
+if ! cp wolfcrypt/src/fips_test.c.bak wolfcrypt/src/fips_test.c
+then
+    echo "fips-hash: AND the restore failed; fips_test.c is damaged." >&2
+    echo "fips-hash: the only good copy is wolfcrypt/src/fips_test.c.bak" >&2
+fi
 exit 1
