@@ -967,10 +967,6 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/random.c
 
-if BUILD_RNG_BANK
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
-endif
-
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/kdf.c
 
 if BUILD_RSA
@@ -1449,6 +1445,11 @@ endif !BUILD_FIPS_NO_POST
 if BUILD_MEMUSE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/entropy-timers.c
+endif
+
+# Past wolfcrypt_last.c: the RNG bank calls the module through _fips wrappers.
+if BUILD_RNG_BANK
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
 endif
 
 # Past wolfcrypt_last.c: DH is not a v7 module service.
