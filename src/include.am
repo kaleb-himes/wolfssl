@@ -1264,10 +1264,6 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha3_asm.S
 endif
 endif
 
-if BUILD_DH
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dh.c
-endif
-
 if BUILD_CMAC
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/cmac.c
 endif
@@ -1453,6 +1449,11 @@ endif !BUILD_FIPS_NO_POST
 if BUILD_MEMUSE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/entropy-timers.c
+endif
+
+# Past wolfcrypt_last.c: DH is not a v7 module service.
+if BUILD_DH
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dh.c
 endif
 
 endif BUILD_FIPS_V7_PLUS
