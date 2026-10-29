@@ -3210,10 +3210,12 @@ static int mldsa_encode_w1_88(const sword32* w1, byte* w1e)
     return ret;
 }
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_LT(7,0,0)
 WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e)
 {
     return mldsa_encode_w1_88(w1, w1e);
 }
+#endif
 #endif /* !WOLFSSL_NO_ML_DSA_44 */
 
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
@@ -3307,10 +3309,12 @@ static int mldsa_encode_w1_32(const sword32* w1, byte* w1e)
     return ret;
 }
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_LT(7,0,0)
 WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e)
 {
     return mldsa_encode_w1_32(w1, w1e);
 }
+#endif
 #endif
 #endif
 

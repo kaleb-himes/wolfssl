@@ -31103,9 +31103,12 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 int test_mldsa_encode_w1_large_values(void)
 {
     EXPECT_DECLS;
+/* FIPS v7 omits these test hooks; the ML-DSA sign and verify tests reach the
+ * encoders directly. */
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) || \
-     !defined(WOLFSSL_MLDSA_NO_VERIFY))
+     !defined(WOLFSSL_MLDSA_NO_VERIFY)) && \
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
 
     sword32 w1[MLDSA_N];
     unsigned int j, k;

@@ -331,7 +331,14 @@ WOLFSSL_API int wc_Sha256Reset(wc_Sha256* sha256);
 WOLFSSL_API int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data);
 #endif
 #ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
-WOLFSSL_API int wc_Sha256HashBlock(wc_Sha256* sha, const unsigned char* data,
+/* FIPS v7: a step inside LMS and SLH-DSA, not a module service, so not
+ * exported. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+WOLFSSL_LOCAL
+#else
+WOLFSSL_API
+#endif
+int wc_Sha256HashBlock(wc_Sha256* sha, const unsigned char* data,
     unsigned char* hash);
 #endif
 
