@@ -19,11 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* FIPS v7: DH is outside the module boundary */
-#if !defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
-    (HAVE_FIPS_VERSION < 7)
-    #define WC_FIPS_LL_CRYPTO
-#endif
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_DH_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
