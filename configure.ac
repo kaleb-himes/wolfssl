@@ -14861,6 +14861,12 @@ AS_IF([test "${HAVE_FIPS_VERSION_MAJOR:-0}" -ge 7 && \
         [*-DWC_C_DYNAMIC_FALLBACK*],
         [AC_MSG_ERROR([WC_C_DYNAMIC_FALLBACK is not allowed with --enable-fips=$FIPS_VERSION; use --enable-fips=dev or --enable-fips=dev-no-post])])])
 
+# FIPS v7+ kernel module: no SVR batching, so callers can wait out a self-test.
+AS_IF([test "$ENABLED_LINUXKM" = "yes" && \
+       test "${HAVE_FIPS_VERSION_MAJOR:-0}" -ge 7 && \
+       test "x$ENABLED_FIPS_DEV" != "xyes"],
+    [AM_CFLAGS="$AM_CFLAGS -DWC_LINUXKM_SVR_NO_BATCHING"])
+
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])
 AC_SUBST([AM_CFLAGS])
