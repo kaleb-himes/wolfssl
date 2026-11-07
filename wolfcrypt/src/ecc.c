@@ -6154,21 +6154,16 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
              curve_id == ECC_SECP224R1 || curve_id == ECC_SECP384R1 ||
              curve_id == ECC_SECP521R1)) {
             WOLFSSL_MSG("ECC keysize zero but curve_id sufficient for FIPS");
-            err = 0;
         } else {
             WOLFSSL_MSG("ECC curve too small for FIPS mode");
-            err = ECC_CURVE_OID_E;
+            return ECC_CURVE_OID_E;
         }
     }
-    if (err == 0) { /* FIPS specific check */
     #endif
     err = wc_ecc_set_curve(key, keysize, curve_id);
     if (err != 0) {
         return err;
     }
-    #if FIPS_VERSION3_GE(6,0,0)
-    } /* end FIPS specific check */
-    #endif
     key->flags = (byte)flags;
 
 #ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
