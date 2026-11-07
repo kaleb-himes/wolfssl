@@ -267,6 +267,21 @@ static int ed25519_is_small_order(const byte p[ED25519_PUB_KEY_SIZE])
     }
     return 0;
 }
+
+/* Return 1 when the encoded y is less than p = 2^255 - 19 (RFC 8032 5.1.3). */
+static int ed25519_pub_y_in_range(const byte p[ED25519_PUB_KEY_SIZE])
+{
+    int i;
+
+    if ((p[ED25519_PUB_KEY_SIZE - 1] & 0x7f) != 0x7f)
+        return 1;
+    for (i = ED25519_PUB_KEY_SIZE - 2; i > 0; i--) {
+        if (p[i] != 0xff)
+            return 1;
+    }
+    /* All bits above the low byte are one: y < p only below 0xed. */
+    return p[0] < 0xed;
+}
 #endif /* !WOLF_CRYPTO_CB_ONLY_ED25519 */
 
 #ifdef HAVE_ED25519_MAKE_KEY
@@ -1103,6 +1118,11 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     /* Defence in depth: also catch small-order keys imported with trusted=1. */
     if (ed25519_is_small_order(key->p)) {
         WOLFSSL_MSG("Ed25519 small-order public key rejected during "
+                    "signature verification");
+        return BAD_FUNC_ARG;
+    }
+    if (!ed25519_pub_y_in_range(key->p)) {
+        WOLFSSL_MSG("Ed25519 public key with y >= p rejected during "
                     "signature verification");
         return BAD_FUNC_ARG;
     }
@@ -2001,22 +2021,9 @@ int wc_ed25519_check_key(ed25519_key* key)
 #endif
         ) {
         /* Verify that xQ and yQ are integers in the interval [0, p - 1].
-         * Only have yQ so check that ordinate. p = 2^255 - 19 */
-        if ((key->p[ED25519_PUB_KEY_SIZE - 1] & 0x7f) == 0x7f) {
-            int i;
-
+         * Only have yQ so check that ordinate. */
+        if (!ed25519_pub_y_in_range(key->p)) {
             ret = PUBLIC_KEY_E;
-            /* Check up to last byte. */
-            for (i = ED25519_PUB_KEY_SIZE - 2; i > 0; i--) {
-                if (key->p[i] != 0xff) {
-                    ret = 0;
-                    break;
-                }
-            }
-            /* Bits are all one up to last byte - check less than -19. */
-            if ((ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) && (key->p[0] < 0xed)) {
-                ret = 0;
-            }
         }
 
         if (ret == 0) {
