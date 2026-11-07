@@ -5537,6 +5537,11 @@ int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
 
     ret = wc_PBKDF2((byte*)out, (byte*)pass, passlen, (byte*)salt, saltlen,
                     iter, keylen, WC_SHA);
+#if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
+    /* The key is derived; the module only flags a salt under 128 bits. */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
     if (ret == 0)
         return WOLFSSL_SUCCESS;
     else
@@ -5566,6 +5571,11 @@ int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
 
     ret = wc_PBKDF2((byte*)out, (byte*)pass, passlen, (byte*)salt, saltlen,
                     iter, keylen, pbkdf2HashType);
+#if FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
+    /* The key is derived; the module only flags a salt under 128 bits. */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
     if (ret == 0)
         return WOLFSSL_SUCCESS;
     else
