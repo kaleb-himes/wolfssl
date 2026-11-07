@@ -6073,6 +6073,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         err = mp_set_int(&key->e, (unsigned long)e);
 #endif
+    /* FIPS 186-5 A.1.1 step 3: d must exceed 2^(nlen/2); no key otherwise. */
+    if (err == MP_OKAY && mp_count_bits(&key->d) <= size / 2)
+        err = PRIME_GEN_E;
     if (err == MP_OKAY)                /* key->n = pq */
         err = mp_mul(p, q, &key->n);
     if (err == MP_OKAY)                /* key->dP = d mod(p-1) */
