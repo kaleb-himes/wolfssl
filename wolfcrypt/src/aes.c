@@ -15577,6 +15577,11 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = AES_GCM_OVERFLOW_E;
     }
 
+    /* All AAD must come before message data. (SP 800-38D 7.1, 7.2) */
+    if ((ret == 0) && (authInSz > 0) && (aes->cSz != 0)) {
+        ret = BAD_STATE_E;
+    }
+
     if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0)) {
         aes->invokeCtr[0]++;
         if (aes->invokeCtr[0] == 0) {
@@ -15768,6 +15773,11 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
          (aes->aSz > WOLFSSL_MAX_32BIT - authInSz)))
     {
         ret = AES_GCM_OVERFLOW_E;
+    }
+
+    /* All AAD must come before message data. (SP 800-38D 7.1, 7.2) */
+    if ((ret == 0) && (authInSz > 0) && (aes->cSz != 0)) {
+        ret = BAD_STATE_E;
     }
 
     if (ret == 0) {

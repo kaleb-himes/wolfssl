@@ -9697,8 +9697,14 @@ int test_wc_AesFeatureCoverage(void)
             sizeof(iv)), 0);
         ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, recovered, cipher,
             sizeof(plain), aad1, sizeof(aad1)), 0);
+    #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+        /* AAD after message data is refused. */
+        ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, aad2,
+            sizeof(aad2)), WC_NO_ERR_TRACE(BAD_STATE_E));
+    #else
         ExpectIntEQ(wc_AesGcmDecryptUpdate(&aes, NULL, NULL, 0, aad2,
             sizeof(aad2)), 0);
+    #endif
         {
             byte badTag[AES_BLOCK_SIZE];
             XMEMCPY(badTag, tag, sizeof(badTag));
