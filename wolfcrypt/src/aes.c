@@ -15973,6 +15973,17 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
         aes->invokeCtr[0] = 0;
         aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ && ivFixedSz != 0) ?
                             0 : 0xFFFFFFFF;
+        if (ivSz == GCM_NONCE_MID_SZ && ivFixedSz != 0) {
+            /* Count from the random invocation field so the limit is hit
+             * before a carry can change the fixed field. (SP 800-38D 8.2.1) */
+            const byte* field = (const byte*)aes->reg + ivFixedSz;
+            int i;
+
+            for (i = 0; i < 4; i++) {
+                aes->invokeCtr[1] = (aes->invokeCtr[1] << 8) | field[i];
+                aes->invokeCtr[0] = (aes->invokeCtr[0] << 8) | field[i + 4];
+            }
+        }
     #ifdef WOLFSSL_AESGCM_STREAM
         aes->ctrSet = 1;
     #endif
