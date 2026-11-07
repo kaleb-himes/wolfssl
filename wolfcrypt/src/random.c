@@ -3718,9 +3718,15 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
 
  /* not CUSTOM_RAND_GENERATE_BLOCK follows */
 #ifdef HAVE_HASHDRBG
+#ifdef HAVE_FIPS
+    /* The caller nonce cannot be checked, so FIPS always draws the 3/2
+     * strength entropy input of SP 800-90A Rev1 8.6.7 case 1. */
+    seedSz = MAX_SEED_SZ;
+#else
     if (nonceSz == 0) {
         seedSz = MAX_SEED_SZ;
     }
+#endif
 
 #ifndef NO_SHA256
     if (rng->drbgType == WC_DRBG_SHA256) {
