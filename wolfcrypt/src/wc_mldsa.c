@@ -15511,6 +15511,9 @@ int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key)
 #endif /* WC_MLDSA_HAVE_MAKE_PUBLIC_KEY */
 #endif
 
+/* Longest message SignCtx and VerifyCtx accept, so every signature verifies. */
+#define MLDSA_MAX_MSG_SZ    (WOLFSSL_MAX_32BIT / 2)
+
 #ifndef WOLFSSL_MLDSA_NO_SIGN
 /* Sign the message using the ML-DSA private key.
  *
@@ -15545,6 +15548,9 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
         msg = mldsa_empty_msg;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (msgLen > MLDSA_MAX_MSG_SZ)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -15756,6 +15762,9 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
         msg = mldsa_empty_msg;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (msgLen > MLDSA_MAX_MSG_SZ)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (!key->prvKeySet)) {
@@ -15984,8 +15993,7 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Reject msgLen that would cause integer overflow in hash computations */
-    if ((ret == 0) && (msgLen > WOLFSSL_MAX_32BIT / 2)) {
+    if ((ret == 0) && (msgLen > MLDSA_MAX_MSG_SZ)) {
         ret = BAD_FUNC_ARG;
     }
 
