@@ -478,9 +478,16 @@ DEF_FAST_MATH="no"
 
 # FIPS 140
 AC_ARG_ENABLE([fips],
-    [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2/3, Will NOT work w/o FIPS license (default: disabled)])],
+    [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2/3, alone selects the latest module, Will NOT work w/o FIPS license (default: disabled)])],
     [ENABLED_FIPS=$enableval],
     [ENABLED_FIPS="no"])
+
+# Bare --enable-fips selects the latest FIPS module.
+FIPS_LATEST="v7"
+if test "$ENABLED_FIPS" = "yes"
+then
+    ENABLED_FIPS="$FIPS_LATEST"
+fi
 
 FIPS_FLAVOR="$ENABLED_FIPS"
 AC_SUBST([FIPS_FLAVOR])
@@ -548,7 +555,7 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #   no - FIPS build disabled, FIPS sources forbidden in build tree
 #   disabled - FIPS build disabled, FIPS sources ignored in build tree
 #   v1 - FIPS 140-2 Cert 2425
-#   default - same as v1
+#   yes - the latest module, FIPS_LATEST
 #   v2 - FIPS 140-2 Cert 3389
 #   cert3389 - alias for v2
 #   rand - wolfRand
@@ -770,8 +777,7 @@ AS_CASE([$ENABLED_FIPS],
         ENABLED_FIPS_DEV=yes
     ],
     [
-        AS_IF([test "$ENABLED_FIPS" = "yes"],[ENABLED_FIPS="(unset)"],[ENABLED_FIPS=\"$ENABLED_FIPS\"])
-        AC_MSG_ERROR([Invalid value for --enable-fips $ENABLED_FIPS (main options: v1, v2, v5, v6, v7, ready, dev, rand, lean-aesgcm, no, disabled)])
+        AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (main options: v1, v2, v5, v6, v7, ready, dev, rand, lean-aesgcm, no, disabled; alone: $FIPS_LATEST)])
     ])
 
 if test -z "$HAVE_FIPS_VERSION_MAJOR"
@@ -820,7 +826,7 @@ AS_CASE([$FIPS_VERSION],
     [],
     [
       AS_IF([ ! test -s $srcdir/wolfcrypt/src/fips.c],
-            [AC_MSG_ERROR([non-FIPS source tree is incompatible with --enable-fips=$enableval])])
+            [AC_MSG_ERROR([non-FIPS source tree is incompatible with --enable-fips=$FIPS_FLAVOR])])
     ]
 )
 
