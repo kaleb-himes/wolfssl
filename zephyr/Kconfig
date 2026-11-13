@@ -88,7 +88,7 @@ config WOLFCRYPT_FIPS
 choice
 	prompt "wolfCrypt FIPS version"
 	depends on WOLFCRYPT_FIPS
-	default WOLFCRYPT_FIPS_V6
+	default WOLFCRYPT_FIPS_V7
 	help
 	  Select the FIPS module version. It must match the dropped-in bundle: the
 	  in-core integrity check and the in-boundary algorithm set are keyed to the
